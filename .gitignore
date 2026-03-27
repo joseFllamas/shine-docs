@@ -1,0 +1,11 @@
+/shine
+/shine-app
+
+# ============================================================
+/.env
+/.env.*
+**/.DS_Store
+**/node_modules/
+/.idea/
+/.editorconfig
+/.gitattributes
