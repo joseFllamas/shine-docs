@@ -4,6 +4,145 @@ Guía de referencia para Claude Code. Actualizar con cada descubrimiento técnic
 
 ---
 
+## Configuración en un PC nuevo
+
+Pasos completos para arrancar el proyecto desde cero en una máquina nueva.
+
+### 1. Requisitos previos
+
+Instalar estas herramientas antes de empezar:
+
+- **Docker Desktop** — requerido por DDEV
+- **DDEV** — [docs.ddev.com/install](https://ddev.readthedocs.io/en/stable/users/install/)
+- **nvm** — para gestionar versiones de Node
+- **Node 21** — instalar y fijar como default:
+  ```bash
+  nvm install 21
+  nvm alias default 21
+  ```
+- **Git**
+
+### 2. Clonar el repositorio
+
+```bash
+git clone <URL_DEL_REPO> shine.test
+cd shine.test
+```
+
+### 3. Configurar Drupal con DDEV
+
+```bash
+cd shine/
+
+# Arrancar el entorno Docker
+ddev start
+
+# Instalar dependencias PHP
+ddev composer install
+
+# Importar la configuración (crea tablas, módulos, etc.)
+ddev drush site:install --existing-config -y
+
+# Importar configuración exportada (si ya existe BD)
+# ddev drush cim -y
+
+# Reconstruir cache
+ddev drush cr
+
+# Verificar que todo va bien
+ddev drush status
+```
+
+> La URL local será `https://shine.ddev.site` (DDEV gestiona el SSL automáticamente).
+
+### 4. Generar las claves RSA para OAuth2
+
+Las claves **no se guardan en git** (están en `.gitignore`). Hay que regenerarlas:
+
+```bash
+ddev exec "mkdir -p /var/www/html/private/oauth-keys"
+ddev exec "openssl genrsa -out /var/www/html/private/oauth-keys/private.key 2048"
+ddev exec "openssl rsa -in /var/www/html/private/oauth-keys/private.key -pubout -out /var/www/html/private/oauth-keys/public.key"
+ddev exec "chmod 600 /var/www/html/private/oauth-keys/private.key"
+```
+
+### 5. Verificar el scope OAuth2
+
+Después de `drush cim`, comprobar que el nombre del scope es correcto (ver gotcha #3):
+
+```bash
+ddev drush php-eval "
+\$scope = \Drupal::entityTypeManager()->getStorage('oauth2_scope')->load('authenticated_user_access');
+echo \$scope->getName();
+"
+# Debe imprimir exactamente: authenticated_user_access
+# Si no, corregir:
+ddev drush php-eval "
+\$s = \Drupal::entityTypeManager()->getStorage('oauth2_scope')->load('authenticated_user_access');
+\$s->set('name', 'authenticated_user_access')->save();
+"
+```
+
+### 6. Crear usuario administrador
+
+```bash
+ddev drush user:create admin --mail="admin@example.com" --password="password"
+ddev drush user:role:add administrator admin
+# O resetear contraseña de user 1:
+ddev drush user:password admin "nueva_password"
+```
+
+### 7. Instalar dependencias de la app Expo
+
+```bash
+cd ../shine-app/
+nvm use 21
+npm install --legacy-peer-deps
+npx expo install --fix
+```
+
+### 8. Añadir redirect URI para el entorno local
+
+Si el entorno local tiene una IP o puerto diferente, añadirlo al consumer OAuth2:
+
+```bash
+cd ../shine/
+ddev drush php-eval "
+\$consumers = \Drupal\consumers\Entity\Consumer::loadMultiple();
+foreach (\$consumers as \$c) {
+  if (\$c->get('client_id')->value === 'shine_expo_app') {
+    \$uris = \$c->get('redirect')->getValue();
+    \$uris[] = ['value' => 'http://localhost:8081'];
+    \$c->set('redirect', \$uris)->save();
+    echo 'OK';
+  }
+}
+"
+```
+
+### 9. Arrancar y probar
+
+```bash
+# Terminal 1 — Drupal ya está corriendo con DDEV
+# Verificar: https://shine.ddev.site
+
+# Terminal 2 — App Expo
+cd shine-app/
+nvm use 21
+npm run web    # abre http://localhost:8081
+```
+
+### Archivos que NO están en git y hay que crear/configurar manualmente
+
+| Archivo/Directorio | Motivo | Cómo obtenerlo |
+|---|---|---|
+| `shine/public_html/sites/default/settings.local.php` | Credenciales locales | Copiar de `settings.php` y ajustar |
+| `shine/private/oauth-keys/private.key` | Clave privada RSA | Regenerar (paso 4) |
+| `shine/private/oauth-keys/public.key` | Clave pública RSA | Regenerar (paso 4) |
+| `shine-app/.env.local` | Variables de entorno locales | Crear si existe `.env.example` |
+
+---
+
 ## Estructura del proyecto
 
 ```
