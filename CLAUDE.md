@@ -18,17 +18,39 @@ shine.test/
 │   │   │   └── custom/shine/ ← tema activo
 │   │   └── sites/default/
 │   └── config/sync/          ← config exportada (drush cex)
+├── shine-app/                ← proyecto Expo (React Native + web)
+│   ├── app/                  ← rutas Expo Router
+│   │   ├── _layout.tsx       ← root layout con auth guard
+│   │   ├── index.tsx         ← redirect inicial
+│   │   ├── login.tsx         ← OAuth2 + PKCE
+│   │   └── (auth)/
+│   │       ├── dashboard.tsx
+│   │       ├── session/[id].tsx
+│   │       └── statistics/index.tsx
+│   ├── src/
+│   │   ├── types/            ← jsonapi.ts, activity.ts, session.ts, activitylog.ts, activitysummary.ts
+│   │   ├── lib/
+│   │   │   ├── storage.ts    ← SecureStore (móvil) / localStorage (web)
+│   │   │   ├── stripHtml.ts
+│   │   │   └── api/          ← client.ts, activities.ts, sessions.ts, tracking.ts, statistics.ts, messages.ts
+│   │   ├── store/            ← auth.ts, session.ts (Zustand)
+│   │   └── components/
+│   │       ├── activities/   ← ActivityBase, ActivityRouter, VerticalTextPlayer, AudioReadingPlayer
+│   │       └── statistics/   ← ActivityEvolutionChart, StandardComparison, SessionProgressBar, SessionComparisonTable, StatsDataTable
+│   ├── package.json
+│   ├── app.json
+│   └── README.md
 ├── docs/                     ← documentación del proyecto
-│   ├── description.md        ← qué es el proyecto
-│   ├── structure.md          ← mapa de entidades Drupal
-│   ├── architecture.md       ← stack tecnológico
-│   ├── roadmap.md            ← fases de implementación
+│   ├── description.md
+│   ├── structure.md
+│   ├── architecture.md
+│   ├── roadmap.md
 │   ├── progress.md           ← ESTADO ACTUAL — leer primero al reanudar
-│   ├── conventions.md        ← convenciones de código
-│   ├── activity-system.md    ← cómo funciona el sistema de actividades
-│   ├── api-design.md         ← contratos de API (OAuth2, JSON:API endpoints)
-│   ├── metrics-tracking.md   ← qué datos se capturan y cómo
-│   └── statistics-design.md  ← diseño de estadísticas y gráficas
+│   ├── conventions.md
+│   ├── activity-system.md
+│   ├── api-design.md
+│   ├── metrics-tracking.md
+│   └── statistics-design.md
 └── CLAUDE.md                 ← este fichero
 ```
 
@@ -38,10 +60,11 @@ shine.test/
 
 ## Entorno de desarrollo
 
-- **DDEV** (Docker). Todos los comandos Drupal se ejecutan con prefijo `ddev`.
+- **DDEV** (Docker). Todos los comandos Drupal se ejecutan con prefijo `ddev` desde `shine/`.
 - **Web root**: `shine/public_html/`
 - **Config sync**: `shine/config/sync/`
 - **URL local**: `https://shine.ddev.site`
+- **Node**: se requiere >= 20. Usar `nvm use 21`. Default: `nvm alias default 21`.
 
 Comandos frecuentes:
 ```bash
@@ -57,6 +80,15 @@ ddev exec bash -c '<comando-dentro-del-contenedor>'
 > ```
 > Sin comillas simples, el shell interpreta `&` como "ejecutar en background" y se pierde el resto de la URL.
 
+### Arrancar la app Expo
+
+```bash
+cd shine-app
+nvm use 21          # o nvm alias default 21 para hacerlo permanente
+npm run web         # navegador en localhost:8081
+npm start           # QR para Expo Go (SDK 54)
+```
+
 ---
 
 ## Stack actual (2026-03-27)
@@ -70,6 +102,10 @@ ddev exec bash -c '<comando-dentro-del-contenedor>'
 | simple_oauth | 6.1.0 | OAuth2 Authorization Code + PKCE |
 | JSON:API | core | Habilitado |
 | CORS | services.yml | Habilitado, `allowedOrigins: ['*']` |
+| Expo SDK | 54 | SDK 55 incompatible con Expo Go actual |
+| React Native | 0.76.7 | |
+| Expo Router | 4.x | File-based routing |
+| Zustand | 5.x | Estado global |
 
 ---
 
@@ -95,73 +131,122 @@ GET  /oauth/jwks          ← claves públicas JWT
 - **UUID**: `5393c7d5-0f7b-4482-a770-0e5ce00639c2`
 - **grant_types**: `authorization_code`, `refresh_token`
 - **scope**: `authenticated_user_access`
-- **redirect_uri**: `exp://localhost:19000/--/oauth2redirect`
-- **pkce**: false (PKCE optional en el servidor, pero el cliente siempre lo usa)
+- **redirect_uris configuradas**:
+  - `exp://localhost:19000/--/oauth2redirect` — Expo Go (móvil)
+  - `http://localhost:8081` — web dev
 - **confidential**: true
+
+### Scope — BUG CONOCIDO Y CORREGIDO
+
+`simple_oauth` v6 busca el scope con `loadByName()` → `loadByProperties(['name' => $identifier])`.
+El campo `name` es el label humano, **NO** el machine name. Por tanto, el `name` del scope entity
+**debe ser idéntico al identifier enviado en el request OAuth**.
+
+**Correcto**: scope con `name = 'authenticated_user_access'` (sin mayúsculas, con guiones bajos).
+**Incorrecto**: scope con `name = 'Authenticated user access'` → devuelve `invalid_scope`.
+
+Si aparece `invalid_scope`, verificar con:
+```bash
+ddev drush php-eval "
+\$scope = \Drupal::entityTypeManager()->getStorage('oauth2_scope')->load('authenticated_user_access');
+echo \$scope->getName();  // debe ser exactamente 'authenticated_user_access'
+"
+```
+Para corregir:
+```bash
+ddev drush php-eval "
+\$s = \Drupal::entityTypeManager()->getStorage('oauth2_scope')->load('authenticated_user_access');
+\$s->set('name', 'authenticated_user_access')->save();
+"
+```
 
 ### Scope configurado
 
 - **ID**: `authenticated_user_access`
+- **name**: `authenticated_user_access` (igual que el ID — ver bug arriba)
 - **Granularidad**: Rol `authenticated`
+- **grant_types habilitados**: `authorization_code`, `refresh_token`
 
 ### Claves RSA
 
 - Dentro del contenedor DDEV: `/var/www/html/private/oauth-keys/private.key` y `public.key`
-- Fuera del contenedor: `shine/.ddev/homeadditions/private/oauth-keys/` (si existe) o re-generar con:
+- Re-generar con:
   ```bash
   ddev exec "openssl genrsa -out /var/www/html/private/oauth-keys/private.key 2048"
   ddev exec "openssl rsa -in /var/www/html/private/oauth-keys/private.key -pubout > /var/www/html/private/oauth-keys/public.key"
   ```
 
-### Flujo completo Authorization Code + PKCE
+### Añadir redirect URI al consumer (desarrollo)
 
-```
-1. App genera code_verifier (random string, min 43 chars)
-2. App calcula code_challenge = BASE64URL(SHA256(code_verifier))
-3. App abre navegador:
-   GET /oauth/authorize?client_id=shine_expo_app
-     &response_type=code
-     &redirect_uri=exp://localhost:19000/--/oauth2redirect
-     &code_challenge={code_challenge}
-     &code_challenge_method=S256
-     &scope=authenticated_user_access
-4. Drupal muestra login → usuario se autentica → Drupal redirige:
-   exp://localhost:19000/--/oauth2redirect?code={AUTH_CODE}
-5. App intercambia código:
-   POST /oauth/token
-   grant_type=authorization_code
-   &client_id=shine_expo_app
-   &client_secret=shine_dev_secret_2026
-   &code={AUTH_CODE}
-   &redirect_uri=exp://localhost:19000/--/oauth2redirect
-   &code_verifier={code_verifier}
-6. Respuesta: { access_token, refresh_token, expires_in }
-7. App guarda tokens en expo-secure-store
+```bash
+ddev drush php-eval "
+\$consumers = \Drupal\consumers\Entity\Consumer::loadMultiple();
+foreach (\$consumers as \$c) {
+  if (\$c->get('client_id')->value === 'shine_expo_app') {
+    \$uris = \$c->get('redirect')->getValue();
+    \$uris[] = ['value' => 'TU_URI_AQUI'];
+    \$c->set('redirect', \$uris)->save();
+    echo 'OK';
+  }
+}
+"
 ```
 
-### Biblioteca Expo recomendada
+---
 
+## Expo App — Puntos clave
+
+### expo-secure-store no funciona en web
+
+`expo-secure-store` lanza error en web. Usar el wrapper en `src/lib/storage.ts`:
 ```typescript
-import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
-
-WebBrowser.maybeCompleteAuthSession();
-
-const discovery = {
-  authorizationEndpoint: 'https://shine.ddev.site/oauth/authorize',
-  tokenEndpoint: 'https://shine.ddev.site/oauth/token',
-};
-
-const [request, response, promptAsync] = AuthSession.useAuthRequest(
-  {
-    clientId: 'shine_expo_app',
-    scopes: ['authenticated_user_access'],
-    redirectUri: AuthSession.makeRedirectUri({ scheme: 'shine' }),
-    usePKCE: true,
-  },
-  discovery
-);
+// usa SecureStore en móvil, localStorage en web
+import { getItem, setItem, deleteItem } from '@/lib/storage';
 ```
+**Nunca importar expo-secure-store directamente** en código compartido móvil/web.
+
+### Expo SDK y Expo Go
+
+- **SDK 54** → compatible con Expo Go actual en App Store.
+- **SDK 55** → requiere development build (Expo Go dice "incompatible").
+- Si se quiere SDK 55: `eas build --platform ios --profile development`.
+
+### Instalación desde cero
+
+```bash
+nvm use 21
+npm install --legacy-peer-deps
+npx expo install --fix   # ajusta versiones exactas para el SDK
+npm run web              # o npm start para móvil
+```
+
+### Dependencias que hay que instalar manualmente
+
+Estas no están en `package.json` porque no se puede ejecutar expo install desde Claude (Node 16 del sistema vs Node 21 de nvm):
+
+```bash
+# Web support (ya instalado si npm install funcionó)
+npx expo install react-dom react-native-web @expo/metro-runtime
+
+# Fase 6 — gráficas
+npx expo install victory-native react-native-svg
+
+# Fase 7 — audio
+npx expo install expo-av
+```
+
+### Formatos de actividad reales (field_activity_format)
+
+| Valor | Descripción | Player |
+|---|---|---|
+| `blink` | Auto-avance cada `field_seconds` segundos | `VerticalTextPlayer` |
+| `vertical_list` | Tap para avanzar, animación slide | `VerticalTextPlayer` |
+| `audio_reading` | Lectura en voz alta con cronómetro | `AudioReadingPlayer` |
+
+### field_text — formato HTML
+
+`field_text` devuelve array de `{ value: "<p>CA SA</p>", processed: "<p>CA SA</p>" }`.
+Usar `stripHtml()` de `src/lib/stripHtml.ts` para obtener texto plano.
 
 ---
 
@@ -177,18 +262,27 @@ Authorization: Bearer {access_token}
 
 ### Entidades expuestas
 
-- `GET /jsonapi/node/activity` — actividades
-- `GET /jsonapi/node/session` — sesiones
+- `GET /jsonapi/node/activity` — actividades (`field_activity_format`, `field_text`, `field_seconds`)
+- `GET /jsonapi/node/session?include=field_activities` — sesiones
 - `GET /jsonapi/node/group_session` — grupos de sesiones
-- `GET /jsonapi/activity_message/explanation_message` — mensajes explicación
-- `GET /jsonapi/activity_message/motivation_message` — mensajes motivación
-- `POST /jsonapi/activitylog/logverticaltext` — crear log (requiere `create activitylog entities`)
-- `POST /jsonapi/activitysummary/summary_vertical_text` — crear resumen (requiere `create activitysummary entities`)
+- `GET /jsonapi/activity_message/explanation_message` — requiere auth
+- `GET /jsonapi/activity_message/motivation_message` — requiere auth
+- `POST /jsonapi/activitylog/logverticaltext` — crear log
+- `POST /jsonapi/activitysummary/summary_vertical_text` — crear resumen
 - `GET /jsonapi/activitysummary/summary_vertical_text?filter[uid.id]={uuid}` — mis resúmenes
+
+### Filtros útiles para estadísticas
+
+```
+?filter[uid.id]={user-uuid}
+&filter[field_activityid.id]={activity-uuid}
+&filter[field_sessionid.id]={session-uuid}
+&sort=created
+&page[limit]=50
+```
 
 ### Permisos JSON:API (rol `authenticated`)
 
-Configurados en el módulo y a través de `drush role:perm:add`:
 - `create activitylog entities`
 - `view own activitylog entities`
 - `create activitysummary entities`
@@ -210,9 +304,9 @@ Los módulos `activitylog` y `activitysummary` tienen implementados en sus `.mod
 |---|---|
 | `activity_message` | Entidad `activity_message` (bundles: `explanation_message`, `motivation_message`) |
 | `activitylog` | Entidad `activitylog` (bundle: `logverticaltext`) |
-| `activitylog_register` | Endpoint legacy `POST /activitylog-register/add` |
+| `activitylog_register` | Endpoint legacy `POST /activitylog-register/add` (mantener hasta migración completa) |
 | `activitysummary` | Entidad `activitysummary` (bundle: `summary_vertical_text`) |
-| `preprocess` | Hooks `preprocess_node` (inyecta mensaje motivación en plantillas) |
+| `preprocess` | Hooks `preprocess_node` (inyecta mensaje motivación en plantillas Drupal acopladas) |
 
 ---
 
@@ -243,6 +337,9 @@ ddev drush php-eval "echo Drupal::VERSION;"
 
 # Acceder a la BD
 ddev mysql
+
+# Ver logs de error recientes
+ddev drush watchdog:show --count=20 --severity=Error
 ```
 
 ---
@@ -253,19 +350,28 @@ ddev mysql
 
 2. **simple_oauth v6 no tiene Password Grant** → solo Authorization Code + PKCE
 
-3. **Renombrar bundles de entidades custom** → NO se puede con `drush cim`. Requiere:
-   - Actualizar tabla en BD
-   - Recrear bundle programáticamente
-   - `drush cex` para sincronizar
+3. **simple_oauth `invalid_scope`** → el campo `name` del scope entity debe ser igual al identifier OAuth (ver sección OAuth2 arriba)
 
-4. **Parches D8/D9/D10 en composer.json** → NO funcionan en D11. Eliminar todos antes del upgrade.
+4. **expo-secure-store en web** → lanza error. Usar `src/lib/storage.ts` como wrapper
 
-5. **Módulo `devel` en system.schema sin estar instalado** → puede bloquear `pm:enable`. Limpiar con:
+5. **Claude Code usa Node 16 del sistema** → los comandos `npx expo install` fallan desde Claude. Ejecutar siempre en terminal del usuario con `nvm use 21`
+
+6. **Expo SDK 55 incompatible con Expo Go** → usar SDK 54 para desarrollo con Expo Go. SDK 55 requiere development build
+
+7. **Renombrar bundles de entidades custom** → NO se puede con `drush cim`. Requiere actualizar BD + recrear bundle programáticamente
+
+8. **Parches D8/D9/D10 en composer.json** → NO funcionan en D11. Eliminar todos antes del upgrade
+
+9. **Módulo `devel` en system.schema sin estar instalado** → puede bloquear `pm:enable`. Limpiar con:
    ```php
    ddev drush php-eval "\Drupal::keyValue('system.schema')->delete('devel');"
    ddev drush php-eval "\$c = \Drupal::configFactory()->getEditable('core.extension'); \$m = \$c->get('module'); unset(\$m['devel']); \$c->set('module', \$m)->save();"
    ```
 
-6. **Temas con `core_version_requirement: ^10`** → no cargan en D11. Actualizar a `^10 || ^11`.
+10. **Temas con `core_version_requirement: ^10`** → no cargan en D11. Actualizar a `^10 || ^11`.
 
-7. **`drush core:requirements --severity=2`** → no funciona en Drush 13. Usar `ddev drush status` y revisar `/admin/reports/status` en el navegador.
+11. **`drush core:requirements --severity=2`** → no funciona en Drush 13. Usar `ddev drush status`.
+
+12. **`npm install` en shine-app** → siempre con `--legacy-peer-deps` por conflictos de peer deps de Expo.
+
+13. **JSON:API POST a activitylog/activitysummary devuelve 422** → el campo `label` (base field) es **required** aunque no aparece en los campos `field_*`. Siempre incluirlo en `attributes`: `{ label: "...", field_item: ..., ... }`.

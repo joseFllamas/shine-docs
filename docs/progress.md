@@ -67,39 +67,44 @@
 ---
 
 ## FASE 5 — Activity Player
-**Estado**: 🔄 Siguiente
+**Estado**: ✅ Completada
 
-- [ ] Componente base `ActivityBase`
-- [ ] `VerticalTextPlayer`
-- [ ] `ImagePositionPlayer` (completar implementación)
-- [ ] Integración con tracking (crear activitylog + summary)
-- [ ] Mensajes de motivación y explicación
-- [ ] Animación de celebración
-- [ ] Navegación entre actividades de sesión
+- [x] `ActivityBase` — intro + playing + completed con animación fade
+- [x] `VerticalTextPlayer` — maneja formatos `blink` (auto-avance) y `vertical_list` (tap)
+- [x] `ActivityRouter` — selecciona el player según `field_activity_format`
+- [x] Tracking: crea logs individuales (activitylog) + resumen (activitysummary) via JSON:API
+- [x] Mensaje de motivación aleatorio al finalizar
+- [x] Pantalla de sesión `app/(auth)/session/[id].tsx` con lista de actividades y estado completado
+- [x] Dashboard enlaza a sesión (tap en tarjeta → `/session/[id]`)
+- [ ] `ImagePositionPlayer` (pospuesto, sin bundle activitylog específico aún)
 
 ---
 
 ## FASE 6 — Estadísticas y gráficas
-**Estado**: ⏳ Pendiente
+**Estado**: ✅ Completada (pendiente instalar victory-native)
 
-- [ ] Instalar Victory Native
-- [ ] Añadir `field_standard_time` a `node.activity` en Drupal
-- [ ] `ActivityEvolutionChart` (gráfica de líneas)
-- [ ] `StandardComparison` (gráfica de barras)
-- [ ] `SessionProgressBar`
-- [ ] `SessionComparisonTable`
-- [ ] Dashboard principal
+- [x] `ActivityEvolutionChart` (gráfica de líneas — victory-native)
+- [x] `StandardComparison` (gráfica de barras vs tiempo estándar)
+- [x] `SessionProgressBar` (barra de progreso accesible)
+- [x] `SessionComparisonTable` (tabla de sesiones con agrupación en cliente)
+- [x] `StatsDataTable` (tabla accesible bajo cada gráfica — WCAG)
+- [x] `statistics/index.tsx` — pantalla con resumen + historial por sesión
+- [x] Enlace "Estadísticas" en dashboard
+- [x] `src/lib/api/statistics.ts` — queries JSON:API + helpers
+- [ ] Instalar: `npx expo install victory-native react-native-svg`
+- [ ] Añadir `field_standard_time` a `node.activity` en Drupal (para comparativa)
 
 ---
 
 ## FASE 7 — Soporte de audio y micrófono
-**Estado**: ⏳ Pendiente
+**Estado**: ✅ Completada (pendiente instalar expo-av)
 
-- [ ] Instalar `expo-av` y configurar permisos
-- [ ] Node type `activity_audio_reading` en Drupal
-- [ ] Bundle `logaudioreading` en activitylog
-- [ ] Componente `AudioReadingPlayer`
-- [ ] Registro de tiempo de lectura
+- [x] Permisos de micrófono en `app.json` (iOS infoPlist + plugin expo-av)
+- [x] `AudioReadingPlayer` — muestra texto, mide tiempo, graba audio (fallback si falla)
+- [x] Formato `audio_reading` añadido a `ActivityFormat` y `ActivityRouter`
+- [x] Funciona en web (solo tiempo) y móvil (graba + tiempo)
+- [ ] Instalar: `npx expo install expo-av`
+- [ ] Crear node type `activity_audio_reading` en Drupal
 
 ---
 
