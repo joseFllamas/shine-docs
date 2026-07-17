@@ -67,6 +67,34 @@ Los elementos 1, 2, 3, 5 y 6 son siempre los mismos. Solo el elemento 4 varía.
 
 ---
 
+### `activity_blink` — Texto en parpadeo (sílabas / conjuntos de letras)
+**Node type**: `node.activity_blink`
+**Activitylog bundle**: `log3_textlistblink`
+**Activitysummary bundle**: `summary3_vertical_text_blink`
+
+**Mecánica**: Se muestra una palabra corta, sílaba o conjunto de letras a la vez. El usuario avanza manualmente con tap (igual que `vertical_list`). Pensado para ejercicios de lectura de sílabas o reconocimiento de patrones en autismo.
+
+**Diferencia clave respecto a `activity`**: No tiene `field_activity_format` — el formato es implícitamente blink. El node type propio elimina la ambigüedad y permite bundles de tracking propios.
+
+**Campos específicos**:
+- `field_text` (text_long): contenido de la lista (palabras cortas, sílabas)
+- `field_seconds` (decimal): duración esperada en segundos
+- `field_activity_code` (string): código identificador
+- `field_activity_level` → taxonomy `activity_level` (requerido)
+- `field_custom_explanation` (text_long): texto libre de apoyo
+- `field_explanation` → `activity_message.explanation_message`
+
+**Métricas capturadas** (`log3_textlistblink`):
+- `field_item`: texto del elemento
+- `field_weight`: posición en la lista
+- `field_time`: tiempo en ms
+- `field_iteration`: número de intento
+- `field_activity_type`: siempre `"activity_blink"`
+
+**Routing en la app**: `ActivityRouter` detecta `activity.type === 'node--activity_blink'` y renderiza `VerticalTextPlayer` dentro de `ActivityBase`. La sesión carga el nodo con `getBlinkActivity()` (endpoint `/jsonapi/node/activity_blink/{uuid}`).
+
+---
+
 ### `activity_image_position` — Posicionamiento de imágenes
 **Node type**: `node.activity_image_position`
 **Activitylog bundle**: *(sin bundle específico aún, comparte logverticaltext)*
@@ -91,7 +119,7 @@ Las actividades se organizan en sesiones:
 ```
 group_session
   └── field_ref_session (M) → session
-        └── field_activities (M) → activity / activity_image_position
+        └── field_activities (M) → activity / activity_blink / activity_image_position
 ```
 
 El JavaScript de `activitylog_register` detecta si hay `session_id` para saber si mostrar la siguiente actividad o recargar la página al finalizar.
@@ -160,28 +188,40 @@ SubActivity (helper interno para image position)
 ```
 ActivityBase (src/components/activities/ActivityBase.tsx)
 │
-│  Props: activity, sessionId, onComplete
+│  Props: activity (ActivityResource | BlinkActivityResource), sessionId, onComplete, renderPlayer
 │  Estado: phase (intro | playing | completed)
 │  Ciclo:
-│  - render intro (explanation + nivel)
-│  - usuario pulsa "Comenzar" → startTimer()
-│  - lógica específica del tipo (implementada en subclase/composición)
-│  - onComplete(logData) → padre envía a API
+│  - render intro (title + field_custom_explanation)
+│  - usuario pulsa "Comenzar" → renderPlayer()
+│  - player llama onEnd(finalLogs) → handleEnd() → API
+│  - completed: animación fade + mensaje motivación + botón Continuar
 │
-├── VerticalTextPlayer.tsx    (equivalente a ActivityTextList)
-├── ImagePositionPlayer.tsx   (completar implementación)
-└── AudioReadingPlayer.tsx    (nuevo, Fase 7)
+│  handleEnd() ramifica por activity.type:
+│  - 'node--activity_blink'  → createBlinkLog + createBlinkSummary
+│  - cualquier otro          → createActivityLog + createActivitySummary
+│
+├── VerticalTextPlayer.tsx    (activity | activity_blink — tap para avanzar)
+├── AudioReadingPlayer.tsx    (activity con format audio_reading)
+└── ImageGroupPlayer.tsx      (activity_image_position)
 ```
 
-El componente padre `ActivityRouter` selecciona qué player usar según `field_activity_format`:
+`ActivityRouter` selecciona player según `activity.type` primero, luego `field_activity_format`:
 
 ```typescript
 // src/components/activities/ActivityRouter.tsx
-const players = {
-  'vertical_text': VerticalTextPlayer,
-  'image_position': ImagePositionPlayer,
-  'audio_reading': AudioReadingPlayer,
-};
+if (activity.type === 'node--activity_image_position') → ImageGroupPlayer
+if (activity.type === 'node--activity_blink')          → ActivityBase + VerticalTextPlayer
+// else: node--activity
+switch (field_activity_format):
+  'blink' | 'vertical_list' → VerticalTextPlayer
+  'audio_reading'            → AudioReadingPlayer
+```
+
+La sesión (`app/(auth)/session/[id].tsx`) carga cada actividad con la función correcta según `ref.type`:
+```typescript
+'node--activity_image_position' → getImageGroupActivity()
+'node--activity_blink'          → getBlinkActivity()
+default                         → getActivity()
 ```
 
 ---

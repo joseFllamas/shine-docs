@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#ffdad4",
+                    "text-secondary": "#6B7280",
+                    "outline": "#6d7a75",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-container": "#3dbfa0",
+                    "on-secondary-fixed-variant": "#633f00",
+                    "surface-container-highest": "#dee4e0",
+                    "inverse-on-surface": "#ecf2ee",
+                    "on-primary-fixed-variant": "#005141",
+                    "surface-container": "#e9efeb",
+                    "on-tertiary-container": "#732418",
+                    "primary-dark": "#2A8C74",
+                    "on-secondary": "#ffffff",
+                    "text-primary": "#1E1E2E",
+                    "tertiary-fixed-dim": "#ffb4a6",
+                    "tertiary-container": "#fb8c78",
+                    "tertiary": "#9c4233",
+                    "success-soft": "#4CAF7D",
+                    "on-surface-variant": "#3d4945",
+                    "on-background": "#171d1b",
+                    "on-error-container": "#93000a",
+                    "outline-variant": "#bccac3",
+                    "surface-bright": "#f5fbf6",
+                    "on-surface": "#171d1b",
+                    "secondary-container": "#feae2c",
+                    "error-warm": "#E05A5A",
+                    "inverse-primary": "#5edbbb",
+                    "on-primary-container": "#00493a",
+                    "surface-container-low": "#eff5f1",
+                    "surface-variant": "#dee4e0",
+                    "on-tertiary": "#ffffff",
+                    "web-outer-bg": "#EEECE9",
+                    "on-secondary-fixed": "#291800",
+                    "error-container": "#ffdad6",
+                    "surface": "#f5fbf6",
+                    "inverse-surface": "#2b322f",
+                    "gray-light": "#E5E7EB",
+                    "secondary-fixed": "#ffddb4",
+                    "on-primary": "#ffffff",
+                    "on-tertiary-fixed": "#3f0200",
+                    "surface-dim": "#d5dbd7",
+                    "primary-fixed": "#7df8d6",
+                    "on-error": "#ffffff",
+                    "background": "#f5fbf6",
+                    "secondary-fixed-dim": "#ffb955",
+                    "secondary": "#835500",
+                    "surface-white": "#FFFFFF",
+                    "surface-container-high": "#e3eae5",
+                    "on-tertiary-fixed-variant": "#7d2c1e",
+                    "on-secondary-container": "#6b4500",
+                    "background-off-white": "#F7F5F2",
+                    "on-primary-fixed": "#002019",
+                    "primary-fixed-dim": "#5edbbb",
+                    "error": "#ba1a1a",
+                    "surface-tint": "#006b57",
+                    "primary": "#006b57"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "touch-target-min": "48px",
+                    "margin-mobile": "24px",
+                    "unit": "8px",
+                    "gutter": "16px",
+                    "max-width-web": "480px"
+            },
+            "fontFamily": {
+                    "headline-2": ["Nunito Sans"],
+                    "headline-1": ["Nunito Sans"],
+                    "label-medium": ["Nunito Sans"],
+                    "body-regular": ["Nunito Sans"],
+                    "activity-display": ["Nunito Sans"]
+            },
+            "fontSize": {
+                    "headline-2": ["22px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "headline-1": ["28px", {"lineHeight": "1.3", "letterSpacing": "0.3px", "fontWeight": "700"}],
+                    "label-medium": ["14px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                    "body-regular": ["18px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                    "activity-display": ["32px", {"lineHeight": "1.2", "letterSpacing": "0.5px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .confetti-piece {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            opacity: 0.7;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-web-outer-bg min-h-screen font-body-regular text-on-background">
+<div class="max-w-[480px] mx-auto min-h-screen bg-background flex flex-col relative overflow-hidden">
+<!-- Celebration Canvas (Confetti Effect Simulation) -->
+<div aria-hidden="true" class="absolute inset-0 pointer-events-none overflow-hidden">
+<div class="confetti-piece bg-primary-container rounded-full" style="top: 10%; left: 15%; transform: rotate(45deg);"></div>
+<div class="confetti-piece bg-secondary-container rounded-sm" style="top: 25%; right: 20%; transform: rotate(15deg);"></div>
+<div class="confetti-piece bg-tertiary-container rounded-full" style="top: 40%; left: 30%; transform: rotate(80deg);"></div>
+<div class="confetti-piece bg-primary rounded-sm" style="top: 5%; right: 40%; transform: rotate(110deg);"></div>
+<div class="confetti-piece bg-secondary-fixed-dim rounded-full" style="top: 60%; left: 10%; transform: rotate(20deg);"></div>
+<div class="confetti-piece bg-on-primary-container rounded-sm" style="top: 15%; right: 5%; transform: rotate(60deg);"></div>
+<div class="confetti-piece bg-tertiary rounded-full" style="top: 80%; right: 15%; transform: rotate(140deg);"></div>
+</div>
+<!-- Main Celebration Content -->
+<main class="flex-1 flex flex-col items-center justify-center px-margin-mobile text-center z-10 py-12">
+<!-- Success Icon -->
+<div class="w-32 h-32 bg-primary-container/20 rounded-full flex items-center justify-center mb-8 shadow-sm">
+<span class="material-symbols-outlined text-[64px] text-primary" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">
+                    check_circle
+                </span>
+</div>
+<!-- Title & Feedback -->
+<h1 class="font-headline-1 text-headline-1 text-text-primary mb-2">Activity complete!</h1>
+<p class="font-headline-2 text-headline-2 text-primary-dark mb-8">Great job on finishing this phase!</p>
+<!-- Stats Card (Bento Style) -->
+<div class="w-full bg-surface-white rounded-xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)] mb-6 flex flex-col items-center">
+<span class="font-label-medium text-label-medium text-text-secondary uppercase tracking-widest mb-2">Final Performance</span>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-secondary" data-icon="timer">timer</span>
+<span class="font-activity-display text-activity-display text-text-primary">Your time: 42 seconds</span>
+</div>
+<div class="w-full h-3 bg-gray-light rounded-full mt-4 overflow-hidden">
+<div class="h-full bg-secondary-container w-full"></div>
+</div>
+</div>
+<!-- Motivation Card -->
+<div class="w-full bg-surface-white border-l-4 border-primary rounded-xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)] mb-10 flex items-start text-left gap-4">
+<div class="bg-primary-container/10 p-2 rounded-lg">
+<span class="material-symbols-outlined text-primary" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<div>
+<p class="font-body-regular text-text-primary leading-tight">You're doing great! Keep going!</p>
+</div>
+</div>
+<!-- Visual Anchor/Illustration -->
+<div class="w-full aspect-[16/9] bg-surface-container-low rounded-2xl mb-12 overflow-hidden relative border border-outline-variant/30">
+<img alt="Success Celebration" class="w-full h-full object-cover mix-blend-multiply opacity-80" data-alt="A diverse group of cheerful people in a bright, modern light-mode office setting giving each other high-fives and smiling warmly. The atmosphere is filled with calm encouragement and radical accessibility, featuring soft, diffused lighting and a warm, stable color palette of teals and ambers. The visual style is modern humanist with generous whitespace and clean structure, reflecting a wellness-focused aesthetic that celebrates progress." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBna0eFVrgvPe2kCVwCbdKYFyqOI6ZZ1wULG26rw95_fcbi_s_6EVoEGRR-SWG7f33yj1GM7e5YhkFNWmfoF8GLvOeH3JwAbS6YuEY11fL_rF2ArPKD3mfwtQL-QW7lP3oGN2v-a-EiytFQrMCcgAbN76FiEup_B7UzH4LhxFAgu6jNUpJakdHidOu-p17DAgTImlVOdrvKeH_ugO5VqqDvxlGbiYHbCal1hpA3ky6qATvMnhotHsYeL2nk5vLIuAycxRHTejAu-70"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent"></div>
+</div>
+<!-- Action Buttons -->
+<div class="w-full flex flex-col gap-4 mt-auto">
+<button class="w-full h-touch-target-min bg-primary text-on-primary font-headline-2 text-headline-2 rounded-xl shadow-sm hover:bg-primary-dark active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2">
+                    Next activity
+                    <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<button class="w-full h-touch-target-min border-2 border-primary text-primary font-headline-2 text-headline-2 rounded-xl hover:bg-surface-container-low active:scale-[0.98] transition-all duration-200 flex items-center justify-center">
+                    Back to session
+                </button>
+</div>
+</main>
+<!-- Activity Progress Dots (Custom Component) -->
+<div class="w-full px-margin-mobile pb-8 flex justify-center gap-3">
+<div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+<div class="w-6 h-2.5 rounded-full bg-primary shadow-sm"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-gray-light"></div>
+</div>
+</div>
+</body></html>

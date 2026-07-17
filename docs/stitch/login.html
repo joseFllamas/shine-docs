@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Shine - Sign In</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#ffdad4",
+                        "text-secondary": "#6B7280",
+                        "outline": "#6d7a75",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-container": "#3dbfa0",
+                        "on-secondary-fixed-variant": "#633f00",
+                        "surface-container-highest": "#dee4e0",
+                        "inverse-on-surface": "#ecf2ee",
+                        "on-primary-fixed-variant": "#005141",
+                        "surface-container": "#e9efeb",
+                        "on-tertiary-container": "#732418",
+                        "primary-dark": "#2A8C74",
+                        "on-secondary": "#ffffff",
+                        "text-primary": "#1E1E2E",
+                        "tertiary-fixed-dim": "#ffb4a6",
+                        "tertiary-container": "#fb8c78",
+                        "tertiary": "#9c4233",
+                        "success-soft": "#4CAF7D",
+                        "on-surface-variant": "#3d4945",
+                        "on-background": "#171d1b",
+                        "on-error-container": "#93000a",
+                        "outline-variant": "#bccac3",
+                        "surface-bright": "#f5fbf6",
+                        "on-surface": "#171d1b",
+                        "secondary-container": "#feae2c",
+                        "error-warm": "#E05A5A",
+                        "inverse-primary": "#5edbbb",
+                        "on-primary-container": "#00493a",
+                        "surface-container-low": "#eff5f1",
+                        "surface-variant": "#dee4e0",
+                        "on-tertiary": "#ffffff",
+                        "web-outer-bg": "#EEECE9",
+                        "on-secondary-fixed": "#291800",
+                        "error-container": "#ffdad6",
+                        "surface": "#f5fbf6",
+                        "inverse-surface": "#2b322f",
+                        "gray-light": "#E5E7EB",
+                        "secondary-fixed": "#ffddb4",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed": "#3f0200",
+                        "surface-dim": "#d5dbd7",
+                        "primary-fixed": "#7df8d6",
+                        "on-error": "#ffffff",
+                        "background": "#f5fbf6",
+                        "secondary-fixed-dim": "#ffb955",
+                        "secondary": "#835500",
+                        "surface-white": "#FFFFFF",
+                        "surface-container-high": "#e3eae5",
+                        "on-tertiary-fixed-variant": "#7d2c1e",
+                        "on-secondary-container": "#6b4500",
+                        "background-off-white": "#F7F5F2",
+                        "on-primary-fixed": "#002019",
+                        "primary-fixed-dim": "#5edbbb",
+                        "error": "#ba1a1a",
+                        "surface-tint": "#006b57",
+                        "primary": "#006b57"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "touch-target-min": "48px",
+                        "margin-mobile": "24px",
+                        "unit": "8px",
+                        "gutter": "16px",
+                        "max-width-web": "480px"
+                    },
+                    "fontFamily": {
+                        "headline-2": ["Nunito Sans"],
+                        "headline-1": ["Nunito Sans"],
+                        "label-medium": ["Nunito Sans"],
+                        "body-regular": ["Nunito Sans"],
+                        "activity-display": ["Nunito Sans"]
+                    },
+                    "fontSize": {
+                        "headline-2": ["22px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "headline-1": ["28px", {"lineHeight": "1.3", "letterSpacing": "0.3px", "fontWeight": "700"}],
+                        "label-medium": ["14px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "body-regular": ["18px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                        "activity-display": ["32px", {"lineHeight": "1.2", "letterSpacing": "0.5px", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #EEECE9; /* web-outer-bg */
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex items-center justify-center min-h-screen">
+<!-- Mobile-First Container (480px) -->
+<main class="w-full max-w-[480px] min-h-screen bg-background-off-white flex flex-col justify-between items-center px-margin-mobile py-16 relative overflow-hidden">
+<!-- Decorative Background Element -->
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary-fixed/20 rounded-full blur-3xl"></div>
+<div class="absolute -bottom-24 -left-24 w-64 h-64 bg-secondary-fixed/20 rounded-full blur-3xl"></div>
+<!-- Top Content Section -->
+<div class="flex flex-col items-center justify-center flex-grow space-y-unit w-full z-10">
+<!-- Logo Section -->
+<div class="mb-12 flex flex-col items-center">
+<div class="w-24 h-24 mb-6 bg-primary rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-surface-white text-[48px]" style="font-variation-settings: 'FILL' 1;">flare</span>
+</div>
+<!-- Brand Casing Integrity: Shine -->
+<h1 class="font-headline-1 text-[42px] leading-tight text-primary tracking-tight font-extrabold">Shine</h1>
+<p class="font-body-regular text-text-secondary mt-4">Let's practice together</p>
+</div>
+<!-- Visual Anchor -->
+<div class="w-full max-w-[320px] aspect-square rounded-xl overflow-hidden bg-surface-white shadow-sm mb-8 flex items-center justify-center p-6 border border-outline-variant/30">
+<img alt="Shine wellness illustration" class="w-full h-full object-contain" data-alt="A peaceful and modern digital illustration of a serene landscape with soft rolling hills and a gentle morning sun rising. The color palette is composed of soft teal, warm amber, and creamy off-white tones, reflecting a wellness and calm encouragement aesthetic. The lighting is bright and airy, creating a high-key, modern light-mode feel. The style is clean and minimalist with smooth, rounded shapes that evoke a sense of radical accessibility and supportive progress." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdQ1Iua-nZaZvnX8KGMUEXIurxC5EV_THidJjfrUwsx5eP9k4cZZnvA35gG873SkhzjJBmCecp3Aptx-IaxyI4uRiKPZRCGJxOK24-weOQSrLMIjNXHzXT35R7drDkUaqC0kaAK3PKKXDQUN7_iqdhbW5bQAt1i0wxYXiO0uU31cRzgDUekkkM6G84hyaKb5ZjJbnFvMekr0qMt-KRX5YBdoxipslvZ_Oj36DFIe_2hm9x9ES6FcdVrSEwq74T1dsLPiOOpkQVJCk"/>
+</div>
+</div>
+<!-- Bottom Action Section -->
+<div class="w-full space-y-4 z-10">
+<!-- Primary CTA: Sign in -->
+<button class="w-full h-touch-target-min bg-primary text-on-primary font-headline-2 rounded-xl shadow-sm active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2">
+                Sign in
+                <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+<!-- Secondary/Alternative Action -->
+<button class="w-full h-touch-target-min bg-transparent border-2 border-primary text-primary font-headline-2 rounded-xl active:scale-[0.98] transition-all duration-200">
+                Create account
+            </button>
+<div class="pt-6 flex flex-col items-center space-y-4">
+<div class="flex items-center w-full gap-4">
+<div class="h-[1px] bg-outline-variant flex-grow"></div>
+<span class="font-label-medium text-text-secondary">or continue with</span>
+<div class="h-[1px] bg-outline-variant flex-grow"></div>
+</div>
+<div class="flex gap-4">
+<button class="w-14 h-14 rounded-full bg-surface-white flex items-center justify-center border border-outline-variant/30 shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-text-primary">google</span>
+</button>
+<button class="w-14 h-14 rounded-full bg-surface-white flex items-center justify-center border border-outline-variant/30 shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-text-primary">ios</span>
+</button>
+</div>
+</div>
+<!-- Legal/Privacy Mini Footer -->
+<p class="text-center font-label-medium text-text-secondary px-6 pt-8">
+                By signing in, you agree to our 
+                <a class="text-primary font-bold hover:underline decoration-2" href="#">Terms</a> and 
+                <a class="text-primary font-bold hover:underline decoration-2" href="#">Privacy Policy</a>
+</p>
+</div>
+</main>
+</body></html>

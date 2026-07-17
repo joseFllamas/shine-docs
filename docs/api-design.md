@@ -129,6 +129,8 @@ Authorization: Bearer {access_token}
 ```
 GET /jsonapi/node/activity
 GET /jsonapi/node/activity/{uuid}
+GET /jsonapi/node/activity_blink
+GET /jsonapi/node/activity_blink/{uuid}
 GET /jsonapi/node/activity_image_position
 GET /jsonapi/node/activity_image_position/{uuid}
 ```
@@ -243,7 +245,75 @@ POST /jsonapi/activitylog/logverticaltext
 
 ---
 
-### Crear un activitysummary
+### Crear un activitylog blink
+
+```
+POST /jsonapi/activitylog/log3_textlistblink
+```
+
+**Body:**
+```json
+{
+  "data": {
+    "type": "activitylog--log3_textlistblink",
+    "attributes": {
+      "label": "A-{sessionId}-{activityId}-{iteration}-{weight}",
+      "field_activity_type": "activity_blink",
+      "field_item": "ca",
+      "field_weight": 1,
+      "field_iteration": 1,
+      "field_time": 1200
+    },
+    "relationships": {
+      "field_activityid": {
+        "data": { "type": "node--activity_blink", "id": "{activity-uuid}" }
+      },
+      "field_sessionid": {
+        "data": { "type": "node--session", "id": "{session-uuid}" }
+      }
+    }
+  }
+}
+```
+
+---
+
+### Crear un activitysummary blink
+
+```
+POST /jsonapi/activitysummary/summary3_vertical_text_blink
+```
+
+**Body:**
+```json
+{
+  "data": {
+    "type": "activitysummary--summary3_vertical_text_blink",
+    "attributes": {
+      "label": "Summary-{activityTitle}-intento {n}",
+      "field_iteration": 1,
+      "field_time": 12500
+    },
+    "relationships": {
+      "field_activityid": {
+        "data": { "type": "node--activity_blink", "id": "{activity-uuid}" }
+      },
+      "field_sessionid": {
+        "data": { "type": "node--session", "id": "{session-uuid}" }
+      },
+      "field_activitylogs": {
+        "data": [
+          { "type": "activitylog--log3_textlistblink", "id": "{log-uuid-1}" }
+        ]
+      }
+    }
+  }
+}
+```
+
+---
+
+### Crear un activitysummary (vertical_list)
 
 ```
 POST /jsonapi/activitysummary/summary_vertical_text
