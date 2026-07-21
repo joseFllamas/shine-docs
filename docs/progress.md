@@ -132,6 +132,17 @@
 
 ---
 
+## FASE 11 — Design system en código (ver plans/02-plan-ejecucion-v1.md)
+**Estado**: 🔶 En curso (2026-07-21)
+
+- [x] `src/theme/` creado: colors, spacing, radii, shadows, typography + index. Portado del proyecto "Shine Design System" de claude.ai/design (fuente de verdad visual)
+- [x] `src/components/ui/` creado: Button, Card, Icon (SVG propio con react-native-svg, sin deps nuevas), LevelChip, AreaChip, StatTile, MotivationCard, EmptyState, ProgressBar, BottomNav + barrel index
+- [x] `tsc --noEmit` limpio
+- [x] Fuente Nunito instalada y conectada (2026-07-21): `useFonts` en `app/_layout.tsx`, familias por peso en `src/theme/typography.ts` (Nunito_400Regular a Nunito_800ExtraBold)
+- [ ] Migrar pantallas existentes a los tokens (hoy siguen con la paleta azul antigua)
+
+---
+
 ## FASE 8 — PWA completa y publicación en stores
 **Estado**: ⏳ Pendiente
 
