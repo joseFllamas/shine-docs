@@ -266,14 +266,18 @@ GET  /oauth/jwks          ← claves públicas JWT
 ### Consumer configurado
 
 - **client_id**: `shine_expo_app`
-- **client_secret**: `shine_dev_secret_2026` ← **CAMBIAR EN PRODUCCIÓN**
+- **client_secret**: (vacío) — desde 2026-07-21 el consumer es **cliente público** (B4). Con PKCE el secreto es innecesario y en un bundle JS sería público de facto. NO reintroducir secret.
 - **UUID**: `5393c7d5-0f7b-4482-a770-0e5ce00639c2`
 - **grant_types**: `authorization_code`, `refresh_token`
 - **scope**: `authenticated_user_access`
 - **redirect_uris configuradas**:
   - `exp://localhost:19000/--/oauth2redirect` — Expo Go (móvil)
   - `http://localhost:8081` — web dev
-- **confidential**: true
+- **confidential**: false (cliente público)
+
+> El consumer es una **entidad de contenido** (vive en BD, no en `config/sync`): `drush cex` no lo captura y hay que recrearlo/ajustarlo en cada entorno (ver "Configuración en un PC nuevo"). Al crearlo, poner `confidential: false` y no asignar secret.
+>
+> **Pendiente conocido**: el rol `authenticated` no tiene el permiso `grant simple_oauth codes`, que simple_oauth exige para completar `/oauth/authorize`. Hoy solo el user 1 (super user) puede completar el login. Conceder ese permiso antes de probar login con usuarios reales.
 
 ### Scope — BUG CONOCIDO Y CORREGIDO
 

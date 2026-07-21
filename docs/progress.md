@@ -2,7 +2,7 @@
 
 > Actualizado en tiempo real. Si el desarrollo se interrumpe, retomar desde el primer ítem sin marcar de la fase en curso.
 
-**Última actualización**: 2026-05-20 (sesión 4)
+**Última actualización**: 2026-07-21 (sesión 5 — FASE 9 backend)
 
 ---
 
@@ -129,6 +129,41 @@
 - [x] `VerticalTextPlayer.tsx` — prop `activity` ampliado a `ActivityResource | BlinkActivityResource`
 - [x] `ActivityRouter.tsx` — rama `node--activity_blink` añadida antes del cast a `ActivityResource`
 - [x] `app/(auth)/session/[id].tsx` — carga actividades blink con `getBlinkActivity()` en lugar de `getActivity()`
+
+---
+
+## FASE 9 — Saneamiento técnico (ver plans/02-plan-ejecucion-v1.md)
+**Estado**: 🔶 En curso (2026-07-21) — bloque **Backend** hecho; bloque App pendiente (prompts 09b y siguientes)
+
+### Backend (prompt 09a) — 2026-07-21
+
+**B4 — Consumer OAuth como cliente público** ✅
+- Consumer `shine_expo_app` (id=2) cambiado a `confidential: false` y `secret` vaciado.
+- El backend **ya no exige `client_secret`**: flujo Authorization Code + PKCE verificado por curl end-to-end (login → `/oauth/authorize` → `/oauth/token`) **sin enviar `client_secret`** → respuesta `200` con `access_token` + `refresh_token`.
+- ⚠️ El consumer es una **entidad de contenido** (vive en BD, no en `config/sync`). Por eso `drush cex` NO lo captura y el cambio **debe reaplicarse en cada entorno** (script en `CLAUDE.md` → "Configuración en un PC nuevo"). Actualizar ese script para poner `confidential: false` al crear el consumer.
+- Pendiente en la app (prompt 09b): dejar de enviar `client_secret` en el POST a `/oauth/token`.
+
+**B1 — Endpoint legacy `/activitylog-register/add`: RETIRADO** ✅
+- Decisión con evidencia: **retirar** (módulo `activitylog_register` desinstalado + código eliminado).
+- Evidencia:
+  - La app Expo escribe el tracking **solo por JSON:API** (`shine-app/src/lib/api/tracking.ts`: POST a `/activitylog/*` y `/activitysummary/*` por bundle). No hay ninguna referencia a `/activitylog-register/add` en la app.
+  - El único consumidor del endpoint era el **frontend Drupal acoplado** (`activitylog_register_preprocess_node` adjuntaba `logregister.js` a las plantillas `node--activity`/`node--session`/`node--activity-image-position`, con `startButton`), sustituido por la app Expo en el pivote de 2026-03-27.
+  - El endpoint tenía el bug B1 (creaba siempre bundles `logverticaltext`/`summary_vertical_text` ignorando `activityType`): retirarlo lo elimina de raíz.
+- Acciones: `drush pm:uninstall activitylog_register`; borrado `public_html/modules/custom/activitylog_register/`; línea eliminada de `config/sync/core.extension.yml`; `drush cr`.
+- Verificado: `GET /activitylog-register/add` → **404**; `GET /jsonapi/activitylog/logverticaltext` → **200** (write path de la app intacto). `activitylog` y `activitysummary` siguen habilitados.
+- Nota: las plantillas del frontend acoplado (`node--activity.html.twig` con `startButton`) siguen en los themes `shine`/`stablechild`; sin el módulo su `startButton` queda inerte (no es parte de la v1). El módulo `preprocess` (inyecta mensaje de motivación en esas plantillas Drupal) también es solo del frontend acoplado; se deja intacto por estar fuera de alcance.
+
+**B5 — CORS** ✅ (preparado)
+- `services.yml` mantiene `allowedOrigins: ['*']` para desarrollo.
+- Añadido comentario en el propio `services.yml` con el valor de producción (orígenes reales del build web; las apps nativas no envían `Origin`). **Activar en FASE 14.**
+
+**Verificación general**
+- `drush watchdog:show --severity=Error`: sin errores nuevos atribuibles a estos cambios (las entradas de la sesión son el 404 esperado del endpoint retirado y un "user denied" de una iteración del test PKCE previa a activar la autorización automática).
+- Config: mi único cambio en `config/sync` (quitar `activitylog_register` de `core.extension.yml`) es idempotente — active y sync coinciden respecto a ese módulo. El resto de diffs de `drush config:status` (`search_help`/`search_node`, `backup_migrate`, `olivero`, `system.performance`) son **drift pre-existente ajeno** a esta tarea; NO se ejecutó un `cim` global para no arrastrarlos.
+
+### ⚠️ Hallazgos para revisar (no bloquean 09a, sí afectan a FASE 9/14)
+- **`grant simple_oauth codes` no está asignado al rol `authenticated`.** simple_oauth exige este permiso para completar `/oauth/authorize` (ver `Oauth2AuthorizeController::authorize`, línea 177). Hoy solo el user 1 (super user) puede completar el login; **un usuario normal de la app NO podría** hacer login. La verificación de PKCE se hizo con el user 1. Recomendado: conceder `grant simple_oauth codes` (y revisar `automatic_authorization` del consumer para evitar la pantalla de consentimiento en cada login) antes de probar login con usuarios reales.
+- **Contraseña del user 1 (`admin`) reseteada a `Test1234!`** durante las pruebas (no se conocía la original). Cambiarla si procede.
 
 ---
 

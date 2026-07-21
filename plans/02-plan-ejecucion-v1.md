@@ -69,9 +69,9 @@ Módulo puro y testeable: `movingAverage(values, window)`, `personalBest(summari
 ### FASE 9: Saneamiento técnico (prerequisito de todo)
 
 Backend:
-- [ ] Convertir el consumer OAuth en cliente público (confidential: false) y eliminar el uso de client_secret en la app (PKCE ya protege el flujo).
-- [ ] Decidir el destino del endpoint legacy `/activitylog-register/add`: retirarlo si el theme acoplado ya no se usa; si se mantiene, corregir el bundle hardcodeado (bug B1).
-- [ ] Restringir CORS a los orígenes reales cuando exista dominio de producción.
+- [x] Convertir el consumer OAuth en cliente público (confidential: false) y eliminar el uso de client_secret en la app (PKCE ya protege el flujo). — Backend hecho (2026-07-21): consumer `shine_expo_app` con `confidential: false` y secret vacío; flujo Authorization Code + PKCE verificado por curl SIN `client_secret` (token 200). Retirar el envío de `client_secret` en la app queda para el prompt 09b.
+- [x] Decidir el destino del endpoint legacy `/activitylog-register/add`: retirarlo si el theme acoplado ya no se usa; si se mantiene, corregir el bundle hardcodeado (bug B1). — Retirado (2026-07-21): módulo `activitylog_register` desinstalado y código eliminado; la app escribe por JSON:API y no usaba el endpoint. Ver decisión en `docs/progress.md`.
+- [ ] Restringir CORS a los orígenes reales cuando exista dominio de producción. — Preparado y documentado en `services.yml` (comentario con el valor de producción). Sigue en `['*']` para desarrollo; activar en FASE 14.
 
 App:
 - [ ] Configuración por entorno: `API_BASE`, `clientId` via `app.config.ts` + `expo-constants` (variables EXPO_PUBLIC_*). Un solo punto de verdad.
