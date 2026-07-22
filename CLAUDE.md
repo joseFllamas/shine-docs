@@ -12,8 +12,16 @@ Pasos completos para arrancar el proyecto desde cero en una máquina nueva.
 
 Instalar estas herramientas antes de empezar:
 
-- **Docker Desktop** — requerido por DDEV
+- **Docker Desktop** (o OrbStack) — requerido por DDEV
 - **DDEV** — [docs.ddev.com/install](https://ddev.readthedocs.io/en/stable/users/install/)
+- **mkcert** — imprescindible para el SSL local de DDEV. Sin él, `ddev start` falla con
+  `mkcert: executable file not found in $PATH` y el navegador rechaza `https://shine.ddev.site`
+  (la app da "Failed to fetch" al llamar a `/oauth/userinfo`). Instalar y registrar la CA:
+  ```bash
+  brew install mkcert nss   # nss = soporte Firefox
+  mkcert -install           # añade la CA local al llavero del sistema
+  ddev restart              # regenera el certificado del proyecto
+  ```
 - **nvm** — para gestionar versiones de Node
 - **Node 21** — instalar y fijar como default:
   ```bash
@@ -139,7 +147,7 @@ npm run web    # abre http://localhost:8081
 | `shine/public_html/sites/default/settings.local.php` | Credenciales locales | Copiar de `settings.php` y ajustar |
 | `shine/private/oauth-keys/private.key` | Clave privada RSA | Regenerar (paso 4) |
 | `shine/private/oauth-keys/public.key` | Clave pública RSA | Regenerar (paso 4) |
-| `shine-app/.env.local` | Variables de entorno locales | Crear si existe `.env.example` |
+| `shine-app/.env.local` | Variables de entorno locales (`EXPO_PUBLIC_API_BASE`, `EXPO_PUBLIC_OAUTH_CLIENT_ID`) | Copiar de `shine-app/.env.example`. Opcional en desarrollo: `src/lib/config.ts` tiene defaults (`https://shine.ddev.site`, `shine_expo_app`) |
 
 ---
 
@@ -234,7 +242,7 @@ npm start           # QR para Expo Go (SDK 54)
 
 | Componente | Versión | Notas |
 |---|---|---|
-| Drupal | 11.3.5 | Upgrade completado desde D10 |
+| Drupal | 11.4.4 | Upgrade desde D10; core update a 11.4 reconciliado en config el 2026-07-22 (split search_help/search_node, gzip→compress) |
 | PHP | 8.3 | |
 | MariaDB | 10.11 | |
 | Drush | 13.7.2 | |
@@ -277,7 +285,9 @@ GET  /oauth/jwks          ← claves públicas JWT
 
 > El consumer es una **entidad de contenido** (vive en BD, no en `config/sync`): `drush cex` no lo captura y hay que recrearlo/ajustarlo en cada entorno (ver "Configuración en un PC nuevo"). Al crearlo, poner `confidential: false` y no asignar secret.
 >
-> **Pendiente conocido**: el rol `authenticated` no tiene el permiso `grant simple_oauth codes`, que simple_oauth exige para completar `/oauth/authorize`. Hoy solo el user 1 (super user) puede completar el login. Conceder ese permiso antes de probar login con usuarios reales.
+> El rol `authenticated` tiene el permiso `grant simple_oauth codes` (exportado en `config/sync/user.role.authenticated.yml`), **imprescindible** para que un usuario normal pueda completar `/oauth/authorize`. Sin él solo el user 1 (super user) puede hacer login.
+>
+> `automatic_authorization` del consumer está en `off`: se muestra una pantalla de consentimiento "Allow" en cada login. Activarlo si se quiere login sin fricción.
 
 ### Scope — BUG CONOCIDO Y CORREGIDO
 

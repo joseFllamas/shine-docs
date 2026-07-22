@@ -24,15 +24,16 @@ Cada fichero es un prompt autocontenido para una sesión de Claude Code. Derivan
 | 5 | `10a-backend-campos-summary.md` | Fable | 09a |
 | 6 | `10b-app-stats-lib.md` | Fable | 10a, 09c |
 | 7 | `11a-app-screen-y-migracion-tokens.md` | Opus | nada (en paralelo con 09/10) |
-| 8 | `12a-dashboard.md` | Opus | 10b, 11a |
-| 9 | `12b-sesion-detalle.md` | Opus | 10b, 11a |
-| 10 | `12c-player.md` | Opus | 11a |
-| 11 | `12d-actividad-completada.md` | Opus | 12c |
-| 12 | `12e-mi-progreso.md` | Fable | 10b, 11a |
-| 13 | `13a-ejercicio-matriz.md` | Fable | 12 completa |
-| 14 | `13b-ejercicio-silabas.md` | Opus | 13a |
-| 15 | `13c-ejercicio-segmentacion.md` | Opus | 13a |
-| 16 | `14a-backend-produccion.md` | Fable | 13 completa |
-| 17 | `14b-publicacion-stores.md` | Opus | 14a |
+| 8 | `11b-fuente-eleccion-usuario.md` | Opus | 11a (antes de la FASE 12) |
+| 9 | `12a-dashboard.md` | Opus | 10b, 11a, 11b |
+| 10 | `12b-sesion-detalle.md` | Opus | 10b, 11a, 11b |
+| 11 | `12c-player.md` | Opus | 11a, 11b |
+| 12 | `12d-actividad-completada.md` | Opus | 12c |
+| 13 | `12e-mi-progreso.md` | Fable | 10b, 11a, 11b |
+| 14 | `13a-ejercicio-matriz.md` | Fable | 12 completa |
+| 15 | `13b-ejercicio-silabas.md` | Opus | 13a |
+| 16 | `13c-ejercicio-segmentacion.md` | Opus | 13a |
+| 17 | `14a-backend-produccion.md` | Fable | 13 completa |
+| 18 | `14b-publicacion-stores.md` | Opus | 14a |
 
-Hito de control tras el paso 12 (FASE 12 completa): demo con datos reales a 2 o 3 familias/terapeutas antes de invertir en los ejercicios nuevos.
+Hito de control tras el paso 13 (FASE 12 completa): demo con datos reales a 2 o 3 familias/terapeutas antes de invertir en los ejercicios nuevos.

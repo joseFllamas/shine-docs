@@ -20,7 +20,8 @@ Prompts preparados para trabajar el diseño visual del aplicativo con Claude Des
 | 04-activity-player.md | Player de actividades (intro, texto vertical, blink, audio) | Alta |
 | 05-actividad-completada.md | Pantalla de celebración | Alta |
 | 06-progreso-estadisticas.md | Mi progreso (estadísticas no desmoralizantes) | Alta |
-| 07-ejercicios-nuevos.md | Players de los 10 ejercicios tipo del docx | Media (v1.1) |
+| 07-ejercicios-nuevos.md | Players de los 10 ejercicios tipo del docx (spec) | Media (v1.1) |
+| 07-fase-ejecucion/ | Mirror del diseño visual definitivo de la fase de ejecución (importado de claude.ai/design). Ver su README. | — |
 
 ## Referencias previas
 

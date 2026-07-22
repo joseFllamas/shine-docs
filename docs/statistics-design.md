@@ -15,17 +15,40 @@ Mostrar al usuario (y opcionalmente a un terapeuta/supervisor) la evolución de 
 Todas las estadísticas se construyen a partir de:
 
 ```
-activitysummary (field_time, field_iteration, created)
-  ├── field_activityid → node.activity (para agrupar por actividad)
-  ├── field_sessionid → node.session (para agrupar por sesión)
+activitysummary (field_time, field_iteration, created,
+                 field_correct_count, field_items_count)     ← FASE 10
+  ├── field_activityid → node actividad (para agrupar y para el nombre real)
+  ├── field_sessionid → node.session (para agrupar y para el nombre real)
+  ├── field_main_area → taxonomy areas (denormalizado, FASE 10)
+  ├── field_activity_level → taxonomy activity_level (denormalizado, FASE 10)
   └── uid → user (para filtrar por usuario)
 ```
+
+> **Contrato FASE 10** (ver `docs/metrics-tracking.md`): área, nivel y contadores de acierto viven denormalizados en el summary; la app los rellena al crear cada summary. **Una única query** de summaries del usuario, con `include=field_activityid,field_sessionid` para los nombres reales, alimenta toda la pantalla de progreso.
 
 Opcionalmente:
 ```
 activitylog (field_time individual por elemento)
-  └── para gráficas de distribución dentro de un intento
+  └── para gráficas de distribución dentro de un intento (vista terapeuta, no v1)
 ```
+
+---
+
+## Módulo de cálculo `src/lib/stats/` (FASE 10)
+
+Módulo puro y testeable (sin React ni capa API). Las pantallas convierten los recursos JSON:API con `toStatsSummary()` y derivan todo en cliente:
+
+| Función | Qué devuelve |
+|---|---|
+| `movingAverage(values, window=5)` | Serie suavizada de la misma longitud (línea protagonista de las gráficas) |
+| `personalBest(summaries)` | Mejor marca: mayor precisión si el ejercicio la tiene, menor tiempo si no |
+| `baselineVsRecent(summaries)` | % de mejora (3 primeros vs 5 últimos) SOLO si es > 10%; nunca negativo; null con < 5 intentos |
+| `streak(dates)` | Racha de días consecutivos; vigente si el último día es hoy o ayer |
+| `weeklyBuckets(summaries)` | Actividades y minutos por día de la semana actual (L-D) + total |
+| `areaAggregation(summaries)` | Dedicación por área (nº, minutos, share), ascendente: la menos trabajada primero |
+| `accuracy(summary)` | % de acierto desde los contadores; null si el ejercicio no aplica |
+
+Todas toleran listas vacías y summaries antiguos incompletos (sin área/fecha/contadores).
 
 ---
 
@@ -40,13 +63,15 @@ Muestra un resumen rápido:
 - Actividades completadas esta semana (sparkline)
 - Acceso rápido a la última sesión
 
-**Query JSON:API**:
+**Query JSON:API** (con nombres reales en la misma request, FASE 10):
 ```
 GET /jsonapi/activitysummary/summary_vertical_text
   ?filter[uid.id]={user-uuid}
-  &sort=-created
-  &page[limit]=50
+  &include=field_activityid,field_sessionid
+  &sort=created
+  &page[limit]=100
 ```
+Implementada en `getMySummaries()` (`src/lib/api/statistics.ts`), que devuelve `{ summaries, included }`; `titlesFromIncluded()` construye el mapa id → título. Los nodos borrados no vienen en `included` (prever fallback).
 
 ---
 
@@ -93,11 +118,11 @@ import { VictoryLine, VictoryChart, VictoryAxis } from 'victory-native';
 
 ---
 
-### 3. Comparativa con el estándar
-**Ruta Expo**: `app/(auth)/activity/[id]/comparison.tsx`
-**Componente**: `src/components/statistics/StandardComparison.tsx`
+### 3. Comparativa con el estándar — ⛔ OBSOLETA (no implementar)
 
-**Prerequisito en Drupal**: campo `field_standard_time` (integer, ms) en `node.activity`.
+> Retirada en FASE 9/10: el componente `StandardComparison` se eliminó (09d), `field_standard_time` nunca existió (el campo real es `field_seconds`, que se presenta como "zona objetivo" sombreada, nunca como comparación) y las reglas de producto (`plans/02-plan-ejecucion-v1.md` § 2.3) prohíben comparar contra estándares externos: solo contra uno mismo (`personalBest`, `baselineVsRecent`). Se conserva la sección como registro de la decisión.
+
+**Prerequisito en Drupal**: ~~campo `field_standard_time` (integer, ms) en `node.activity`~~.
 
 **Qué muestra**: Gráfica de barras comparando el mejor tiempo del usuario vs el tiempo estándar.
 
@@ -189,13 +214,20 @@ Dado que los usuarios tienen dislexia, las gráficas deben:
 ## Estructura de componentes
 
 ```
+src/lib/stats/                      Cálculo puro (FASE 10, ver sección arriba)
+├── types.ts / adapter.ts           StatsSummary + toStatsSummary
+├── movingAverage.ts · personalBest.ts · baselineVsRecent.ts
+├── streak.ts · weeklyBuckets.ts · areaAggregation.ts · accuracy.ts
+└── __tests__/                      Un test por función
+
 src/components/statistics/
-├── ActivityEvolutionChart.tsx      Gráfica de líneas — evolución temporal
-├── StandardComparison.tsx          Gráfica de barras — vs estándar
-├── SessionProgressBar.tsx          Barra de progreso — sesión actual
-├── SessionComparisonTable.tsx      Tabla — comparativa entre sesiones
-└── StatsDataTable.tsx              Componente base — tabla accesible bajo gráficas
+├── ActivityEvolutionChart.tsx        Gráfica de líneas — evolución temporal
+├── ImagePositionEvolutionChart.tsx   Evolución de precisión (imágenes)
+├── SessionComparisonTable.tsx        Tabla — historial por sesión
+└── StatsDataTable.tsx                Componente base — tabla accesible bajo gráficas
 ```
+
+> `StandardComparison` y `SessionProgressBar` se eliminaron en la limpieza A7 (09d); el progreso de sesión usa el `ProgressBar` del design system.
 
 ---
 

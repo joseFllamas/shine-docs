@@ -103,16 +103,50 @@ POST /jsonapi/activitysummary/summary_vertical_text
 
 ---
 
+## Campos denormalizados de estadísticas (FASE 10, 2026-07-22)
+
+Para que TODA la pantalla de estadísticas se resuelva con una única query de summaries (ver `plans/02-plan-ejecucion-v1.md` § 2.2), los **3 bundles** de `activitysummary` (`summary_vertical_text`, `summary3_vertical_text_blink`, `summary_image_position`) comparten estos campos adicionales (storage compartido):
+
+| Campo | Tipo Drupal | Descripción |
+|---|---|---|
+| `field_main_area` | entity_ref → taxonomy `areas` (1) | Área principal, copiada del nodo actividad al crear el summary |
+| `field_activity_level` | entity_ref → taxonomy `activity_level` (M) | Nivel(es), copiados del nodo actividad |
+| `field_correct_count` | integer | Aciertos del intento (solo ejercicios con respuesta correcta) |
+| `field_items_count` | integer | Total de ítems del intento |
+
+- **Quién los rellena**: la app, al crear el summary (ya tiene el nodo actividad cargado; coste cero). Los counts solo aplican a ejercicios con noción de acierto (hoy: imágenes, via `field_correct` de sus logs).
+- **Backfill histórico**: `shine/scripts/backfill-summary-area-level.php` (drush php:script, idempotente) copia área/nivel desde el nodo actividad y deriva los counts de imágenes contando `field_activitylogs`.
+- **Requisito de contenido**: los nodos actividad deben tener `field_main_area` asignado para que el área llegue a los summaries (el "required" del campo solo aplica en formulario, no a nodos creados antes o programáticamente). Las actividades existentes (A1, A2, A3) tienen área asignada desde el 2026-07-22; al crear actividades nuevas, asignarla siempre.
+
+### Decisión B3: `activity_image_position` NO lleva `field_seconds`
+
+Decidido el 2026-07-22 (auditoría B3, plan § FASE 10):
+
+- La métrica del ejercicio de imágenes es la **precisión** (`field_correct_count` / `field_items_count`), no el tiempo: el tiempo de observación depende de la complejidad de cada imagen y no es comparable entre actividades.
+- Una "zona objetivo" de tiempo incentivaría velocidad sobre acierto, contra el criterio de producto (§ 2.3 del plan: rendimiento suavizado, sin juicios).
+- En la pantalla de progreso, las actividades de imágenes aparecen en la sección de **aciertos** (barras de % en positivo) y no en la de evolución temporal con zona objetivo.
+
+Si en el futuro se necesitara referencia temporal para imágenes, se añadiría reutilizando el storage `node.field_seconds` existente.
+
+### Índices (rendimiento de queries de estadísticas)
+
+- `activitysummary` (tabla base; la entidad no es revisionable ni traducible, no existe `activitysummary_field_data`): índice compuesto `activitysummary__uid_created (uid, created)`, añadido en `activitysummary_update_10001()`.
+- `activitysummary__field_activityid`: el índice `field_activityid_target_id` ya lo crea core para todo entity_reference; junto con el índice de uid de la tabla base cubre el patrón `filter[uid.id]` + `filter[field_activityid.id]`.
+
+---
+
 ## Métricas propuestas para estadísticas futuras
 
 Las siguientes métricas no existen aún pero son necesarias para el sistema de estadísticas de la Fase 6:
 
 ### Añadir a `node.activity` (estándar de referencia)
 
+> **Corrección (auditoría B3)**: `field_standard_time` nunca se creó. El campo real de referencia temporal es **`field_seconds`** (decimal), presente en `activity` y `activity_blink`, y se presenta como "zona objetivo" (nunca como línea de aprobado). `activity_image_position` no lo lleva por decisión explícita (ver sección anterior).
+
 | Campo nuevo | Tipo | Descripción |
 |---|---|---|
-| `field_standard_time` | integer | Tiempo en ms que debería tardar un usuario típico en completar la actividad |
-| `field_standard_item_time` | integer | Tiempo medio esperado por elemento |
+| ~~`field_standard_time`~~ | — | Sustituido por `field_seconds` (ya existe) |
+| `field_standard_item_time` | integer | Tiempo medio esperado por elemento (no creado; valorar en v1.1) |
 
 ### Añadir a `activitysummary.summary_vertical_text` (métricas derivadas)
 

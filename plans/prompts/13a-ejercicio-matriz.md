@@ -8,6 +8,8 @@
 
 Lee `plans/02-plan-ejecucion-v1.md` (FASE 13), la especificación del ejercicio 7.6 en "ejercicios - tipo.docx" (raíz del repo; si no puedes leer el docx, pide al usuario que exporte esa sección a texto), el diseño `plans/design/07-ejercicios-nuevos.md`, y sobre todo el checklist de `docs/activity-system.md` y las convenciones de nombres de `docs/conventions.md`.
 
+> **Diseño visual definitivo (obligatorio seguirlo)**: `plans/design/07-fase-ejecucion/` es el mirror importado de claude.ai/design con los 3 estados de cada ejercicio. Para este player, la sección **7.6 Matriz de discriminación visual** de su `README.md`, y las láminas correspondientes en `preview.html` (ábrelo en el navegador): cuadrícula 5×8 de letras confundibles (p/q/b/d/g), instrucción "Encuentra todas las **p**" con la letra objetivo en chip teal, **barra de tiempo sutil ámbar** (no cuenta atrás grande), celdas encontradas en teal con badge check, y al acabar la que faltó se revela con **aro ámbar** sin mensaje de fallo. Respeta tokens, 48px táctil y progreso "N / 10" abajo.
+
 Resumen del ejercicio: matriz de letras/símbolos donde el usuario marca todas las apariciones del objetivo (discriminación visual). Sin audio. Métricas: aciertos y tiempo.
 
 Tareas backend (`shine/`, con `ddev`, config export siempre):

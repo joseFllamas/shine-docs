@@ -74,37 +74,38 @@ Backend:
 - [ ] Restringir CORS a los orígenes reales cuando exista dominio de producción. — Preparado y documentado en `services.yml` (comentario con el valor de producción). Sigue en `['*']` para desarrollo; activar en FASE 14.
 
 App:
-- [ ] Configuración por entorno: `API_BASE`, `clientId` via `app.config.ts` + `expo-constants` (variables EXPO_PUBLIC_*). Un solo punto de verdad.
-- [ ] Aplicar el filtro `filter[uid.id]` en `getMySummaries` y `getMyImageSummaries` (bug A1).
-- [ ] Calcular `iteration` por actividad (consulta del último summary de esa actividad) en lugar del contador global del store (bug A4).
-- [ ] Derivar el estado "completada" de la sesión desde los summaries del servidor (bug A5) y persistirlo.
-- [ ] Manejo de errores: catch en la carga de sesión, feedback de error en login, fallback del ActivityRouter (mensaje "tipo de ejercicio no soportado" en lugar de pantalla en blanco).
-- [ ] Limpiar código huérfano (A7) y añadir ESLint + prettier + un primer test del módulo de stats.
+- [x] Configuración por entorno: `API_BASE`, `clientId` via `app.config.ts` + `expo-constants` (variables EXPO_PUBLIC_*). Un solo punto de verdad. — Hecho (2026-07-21, prompt 09b): `app.config.ts` inyecta `EXPO_PUBLIC_API_BASE` y `EXPO_PUBLIC_OAUTH_CLIENT_ID` en `extra`; nuevo módulo `src/lib/config.ts` (único punto de verdad) exporta `API_BASE`, `OAUTH_CLIENT_ID`, endpoints OAuth y scope. `client_secret` eliminado por completo de la app (login + refresh). `.env.example` creado. `tsc --noEmit` limpio; grep sin secret ni URLs sueltas fuera de config.ts.
+- [x] Aplicar el filtro `filter[uid.id]` en `getMySummaries` y `getMyImageSummaries` (bug A1). — Hecho (2026-07-21, prompt 09c): ambas funciones aplican `filter[uid.id]`; revisado el resto de la capa API (`getMyActivitySummaries` ya lo tenía; los nuevos helpers `getNextIteration`/`getCompletedActivityIds` también).
+- [x] Calcular `iteration` por actividad (consulta del último summary de esa actividad) en lugar del contador global del store (bug A4). — Hecho (2026-07-21, prompt 09c): `getNextIteration(bundle, uid, activityId)` consulta el último summary (`filter[uid.id]`+`filter[field_activityid.id]`+`sort=-created`+`page[limit]=1`) y devuelve `field_iteration+1` (o 1). Se calcula justo antes de crear el summary en `ActivityBase` e `ImageGroupPlayer`; eliminado el prop `iteration` y el contador global del store. Ventana de carrera con dos dispositivos (B6, severidad baja) documentada en el JSDoc de `getNextIteration`.
+- [x] Derivar el estado "completada" de la sesión desde los summaries del servidor (bug A5) y persistirlo. — Hecho (2026-07-21, prompt 09c): `getCompletedActivityIds(uid, sessionId)` consulta los 3 bundles de summary por sesión; `session/[id].tsx` deriva `completedIds` del servidor al cargar y mantiene el estado local solo como cache optimista tras completar.
+- [x] Manejo de errores: catch en la carga de sesión, feedback de error en login, fallback del ActivityRouter (mensaje "tipo de ejercicio no soportado" en lugar de pantalla en blanco). — Hecho (2026-07-21, prompt 09d): `session/[id].tsx` con estado de error (EmptyState `cloud-off` + botones Reintentar/Volver, tokens del DS); `ActivityRouter` con fallback `UnsupportedActivity` para formatos y tipos de nodo desconocidos (+ prop `onExit`); login ya tenía estado de error (verificado).
+- [x] Limpiar código huérfano (A7) y añadir ESLint + prettier + un primer test del módulo de stats. — Hecho (2026-07-21, prompt 09d): eliminados `SessionProgressBar`, `StandardComparison`, `getGroupSessions`, `getExplanationMessage` (+ tipo) y `src/store/session.ts` (huérfano completo, confirmado por grep). Añadidos `eslint.config.js` (eslint-config-expo flat + prettier), `.prettierrc`/`.prettierignore`, `jest.config.js` (preset jest-expo) y primer test `src/lib/__tests__/stripHtml.test.ts`; scripts `lint`/`format`/`test`. Instalación de dev-deps la ejecuta el usuario (comandos en docs/progress.md).
 
 Verificación: flujo completo en dos dispositivos con el mismo usuario sin duplicar iteraciones; sin secreto OAuth en el bundle.
 
 ### FASE 10: Capa de datos de estadísticas
 
 Backend:
-- [ ] Añadir `field_main_area`, `field_activity_level`, `field_correct_count`, `field_items_count` a los 3 bundles de activitysummary. Exportar config.
-- [ ] Script de backfill para summaries históricos (área/nivel desde el nodo actividad).
-- [ ] Añadir `field_seconds` a `activity_image_position` (o decidir explícitamente que las imágenes no tienen zona objetivo).
-- [ ] Índices en `activitysummary_field_data` para (uid, created) y (uid, field_activityid).
+- [x] Añadir `field_main_area`, `field_activity_level`, `field_correct_count`, `field_items_count` a los 3 bundles de activitysummary. Exportar config. — Hecho (2026-07-22, prompt 10a): storage compartido, config exportada, expuestos en JSON:API.
+- [x] Script de backfill para summaries históricos (área/nivel desde el nodo actividad). — Hecho (2026-07-22): `shine/scripts/backfill-summary-area-level.php` (idempotente); 9 con área/nivel verificados contra su nodo; 7 sin actividad resoluble (nodo 2 borrado). Las áreas de A1/A2/A3 se asignaron el 2026-07-22 y se re-ejecutó el backfill.
+- [x] Añadir `field_seconds` a `activity_image_position` (o decidir explícitamente que las imágenes no tienen zona objetivo). — Decidido (2026-07-22): NO se añade; la métrica de imágenes es precisión, no tiempo. Documentado en `docs/metrics-tracking.md`.
+- [x] Índices en `activitysummary_field_data` para (uid, created) y (uid, field_activityid). — Hecho (2026-07-22): índice `activitysummary__uid_created` en la tabla base `activitysummary` (no existe `_field_data`) via `activitysummary_update_10001`; el índice de `field_activityid` ya lo crea core en su tabla dedicada.
 
 App:
-- [ ] Rellenar los campos nuevos al crear summaries (los 3 tipos).
-- [ ] Módulo `src/lib/stats/` con las funciones de 2.4 y tests.
-- [ ] Resolver nombres reales de actividad y sesión en las queries (include o fetch de nodos).
+- [x] Rellenar los campos nuevos al crear summaries (los 3 tipos). — Hecho (2026-07-22, prompt 10b): helper `summaryStatsRelationships()` en tracking.ts copia área/nivel del nodo actividad ya cargado (coste cero); `ImageGroupPlayer` añade además `field_correct_count`/`field_items_count`. Payload verificado contra JSON:API (201 con todos los campos persistidos).
+- [x] Módulo `src/lib/stats/` con las funciones de 2.4 y tests. — Hecho (2026-07-22): módulo puro (sin React ni capa API) con `movingAverage`, `personalBest`, `baselineVsRecent`, `streak`, `weeklyBuckets`, `areaAggregation`, `accuracy` + adaptador `toStatsSummary`; 44 tests nuevos (45/45 verdes), casos límite incluidos.
+- [x] Resolver nombres reales de actividad y sesión en las queries (include o fetch de nodos). — Hecho (2026-07-22): `include=field_activityid,field_sessionid` en las queries de summaries (una sola request; verificado contra el backend) + `titlesFromIncluded()`; placeholders "Actividad N" / "Sesión {uuid}" eliminados.
 
-Verificación: una sola query de summaries devuelve todo lo necesario para pintar la pantalla de progreso completa, con nombres reales.
+Verificación: una sola query de summaries devuelve todo lo necesario para pintar la pantalla de progreso completa, con nombres reales. ✅ (2026-07-22: la query con include trae títulos reales, área, nivel y contadores; el módulo stats deriva todas las métricas de esa única descarga)
 
 ### FASE 11: Design system en código
 
 - [x] Crear `src/theme/` (tokens: colores, tipografía, espaciado, radios, sombras). Hecho el 2026-07-21 portando el proyecto "Shine Design System" de claude.ai/design (fuente de verdad visual).
 - [x] Componentes ui/: Button, Card, Icon (SVG propio estilo Lucide), LevelChip, AreaChip, ProgressBar, StatTile, MotivationCard, EmptyState, BottomNav. Portados de los JSX del proyecto Design a React Native.
 - [x] Cargar la fuente Nunito: instalada y conectada el 2026-07-21 (useFonts en el layout raíz, familias por peso en el tema).
-- [ ] Componente Screen (layout con max-width 480px en web, usando `layout.appMaxWidth`).
-- [ ] Migrar las pantallas existentes a los tokens (eliminar los hex duplicados).
+- [x] Componente Screen (layout con max-width 480px en web, usando `layout.appMaxWidth`). — Hecho (2026-07-22, prompt 11a): `src/components/ui/Screen.tsx` (exportado en el index); marco exterior `colors.shell` en web con columna centrada a 480, `colors.bgScreen` a pantalla completa en móvil, safe areas configurables (`edges`) y gutter opcional (`layout.screenGutter`).
+- [x] Migrar las pantallas existentes a los tokens (eliminar los hex duplicados). — Hecho (2026-07-22, prompt 11a): `dashboard.tsx` reescrito con tokens + componentes DS (Card, Button, Icon, Screen), eliminada la paleta azul de facto (`#006b57`, `#3dbfa0`…) y los objetos locales `C`/`FONT`/`Icon`; `session/[id].tsx` y `statistics/index.tsx` envueltos en `Screen` (centrado 480 en web) y sus `styles.screen` redundantes retirados. Añadido el icono `log-out` al set. Verificado: grep de hex/rgba sin resultados fuera de `theme`/`ui`, `tsc --noEmit` limpio.
+- [x] Elección de fuente por el usuario (Nunito / OpenDyslexic): ajuste global de cuenta con selector por vista previa en una pantalla de Ajustes nueva, persistido en el usuario Drupal con cache local, y acceso discreto desde la intro del ejercicio. Preferencia de confort, sin promesas terapéuticas ni la palabra "dislexia" en la UI. Detalle y decisiones en `plans/prompts/11b-fuente-eleccion-usuario.md`. — Hecho (2026-07-22, prompt 11b): campo `field_dyslexic_font` (boolean) en user, editable por el propio usuario vía `PATCH /jsonapi/user/user/{uuid}` (acceso self-edit de core, sin abrir permisos extra); config exportada. OpenDyslexic (OFL) en `assets/fonts/` cargada con `expo-font` junto a Nunito; mapeo de 5 pesos a Regular/Bold documentado en `src/theme/typography.ts`. Store `src/store/settings.ts` (Zustand + cache local `@/lib/storage` + sync servidor al login y al cambiar); hooks `useFamilies()`/`useText()` en `@/theme` y toda la UI (ui/, pantallas, players, tablas/gráficas) migrada a ellos. Pantalla `app/(auth)/settings.tsx` con selector por vista previa ("¿Cómo prefieres leer?") y cierre de sesión (movido aquí desde el BottomNav); acceso desde el avatar del dashboard y enlace discreto "Ajustar cómo se ven las letras" en la intro de ActivityBase. QA: guards de `numberOfLines`/`flexShrink` en Button, StatTile y BottomNav. `tsc --noEmit` y `npm run lint` sin errores; 45/45 tests verdes.
 
 En paralelo (sin código): generar las pantallas con Claude Design usando `plans/design/01` a `06` y validar la dirección visual antes de pulir detalles.
 
@@ -134,7 +135,7 @@ Criterio de selección: máximo valor terapéutico con mínima dependencia de as
 Cada uno sigue el checklist de `docs/activity-system.md` y las convenciones de nombres de `docs/conventions.md`. Los 7 restantes (los que exigen audio: omisión silábica, pseudopalabras, dictado inverso, intruso rímico, instrucciones encadenadas, más segmentación silábica y ortografía con colores) pasan a v1.1 junto con la producción de locuciones (valorar TTS de calidad como atajo).
 
 - [ ] Por ejercicio: node type + bundles log/summary + config export + tipos TS + Player + rama en ActivityRouter + tracking.
-- [ ] Diseño previo con `plans/design/07-ejercicios-nuevos.md`.
+- [ ] Diseño previo: spec en `plans/design/07-ejercicios-nuevos.md` y **diseño visual definitivo** (los 3 estados de cada ejercicio) en `plans/design/07-fase-ejecucion/` (mirror importado de claude.ai/design; abrir `preview.html`). Los prompts 13a/13b/13c ya apuntan a la sección concreta de cada uno.
 - [ ] Añadir términos de taxonomía `areas` que falten (discriminación visual, conciencia léxica...).
 
 Verificación: los 3 ejercicios jugables dentro de una sesión mixta, con sus métricas en la pantalla de progreso (incluida precisión).

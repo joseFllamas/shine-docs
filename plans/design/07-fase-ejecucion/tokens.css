@@ -1,0 +1,83 @@
+/*
+ * Shine Design System — tokens (reference copy)
+ * Fuente: proyecto claude.ai/design "Shine Design System"
+ * (projectId eabf0011-d8f0-42bb-9743-2f9d46f5e33a), _ds_manifest.json.
+ * Copia congelada para que preview.html renderice sin depender de claude.ai.
+ * La fuente de verdad viva es el proyecto de claude.ai/design y su port en
+ * shine-app/src/theme/. No editar a mano: re-exportar desde el manifiesto.
+ */
+:root {
+  /* Paleta base */
+  --color-teal: #3DBFA0;
+  --color-teal-dark: #2A8C74;
+  --color-teal-tint: #E8F6F1;
+  --color-amber: #F5A623;
+  --color-amber-dark: #C77F0E;
+  --color-amber-tint: #FDF0DA;
+  --color-bg: #F7F5F2;
+  --color-surface: #FFFFFF;
+  --color-shell: #EEECE9;
+  --color-ink: #1E1E2E;
+  --color-ink-muted: #6B7280;
+  --color-success: #4CAF7D;
+  --color-success-tint: #E4F3EB;
+  --color-error: #E05A5A;
+  --color-track: #E5E7EB;
+  --color-border: #E3E0DB;
+
+  /* Niveles */
+  --color-level-beginner-bg: #E4F3EB;
+  --color-level-beginner-fg: #2E7D53;
+  --color-level-intermediate-bg: #FDF0DA;
+  --color-level-intermediate-fg: #B5760B;
+  --color-level-advanced-bg: #EFE7FA;
+  --color-level-advanced-fg: #6D45A8;
+
+  /* Alias semánticos */
+  --primary: var(--color-teal);
+  --primary-pressed: var(--color-teal-dark);
+  --accent: var(--color-amber);
+  --bg-screen: var(--color-bg);
+  --surface-card: var(--color-surface);
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-ink-muted);
+  --text-on-primary: #FFFFFF;
+  --success: var(--color-success);
+  --danger: var(--color-error);
+
+  /* Tipografía */
+  --font-base: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-dyslexic: 'OpenDyslexic', 'Nunito', sans-serif;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+  --fs-h1: 28px;   --lh-h1: 1.3;  --ls-h1: 0.3px;
+  --fs-h2: 22px;   --lh-h2: 1.4;
+  --fs-body: 18px; --lh-body: 1.7; --ls-body: 0.2px;
+  --fs-label: 14px; --lh-label: 1.5;
+  --fs-exercise: 32px; --lh-exercise: 1.4;
+  --fs-stat: 32px;
+
+  /* Espaciado (escala 4px) */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px;
+  --app-max-width: 480px;
+  --touch-min: 48px;
+  --screen-gutter: var(--space-4);
+
+  /* Radios */
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --radius-xl: 24px; --radius-pill: 999px;
+
+  /* Sombras y movimiento */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --shadow-modal: 0 8px 32px rgba(30, 30, 46, 0.16);
+  --press-scale: 0.97;
+  --press-scale-card: 0.98;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur: 160ms;
+}
