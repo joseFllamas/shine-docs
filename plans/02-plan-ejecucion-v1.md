@@ -113,7 +113,7 @@ Verificación: cero colores hardcodeados fuera de theme; app visualmente coheren
 
 ### FASE 12: Pantallas v1 (especificación funcional en la sección 4)
 
-- [ ] Dashboard: resumen semanal, racha, "continuar donde lo dejaste", progreso por sesión, chips de área/nivel.
+- [x] Dashboard: resumen semanal, racha, "continuar donde lo dejaste", progreso por sesión, chips de área/nivel. — Hecho (2026-07-22): `dashboard.tsx` portado del mockup `HomeScreen.jsx` (saludo con fecha y momento del día, StatTiles de semana solo si hay práctica, racha en positivo con MotivationCard, tarjeta "Continuar" con la sesión a medias más reciente, lista de sesiones con AreaChip/LevelChip y ProgressBar real, EmptyState y skeletons). Deriva todo de 2 queries: `getSessions` (include anidado de área/nivel) + `getMySummaries`; helper puro `src/lib/sessionCards.ts` para progreso/chips. tsc y lint limpios; derivaciones (semana, racha, progreso) verificadas contra summaries reales.
 - [ ] Detalle de sesión: barra de progreso real, estados por actividad desde servidor, CTA continuar/empezar/repetir, celebración de sesión completa.
 - [ ] Player: cuenta atrás en blink, permiso de micro denegado con fallback amable, guardado resiliente (cola de reintento simple).
 - [ ] Actividad completada: mejor marca personal, variante sesión completa, sin comparaciones negativas.
