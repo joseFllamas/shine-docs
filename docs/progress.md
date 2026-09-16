@@ -2,7 +2,7 @@
 
 > Actualizado en tiempo real. Si el desarrollo se interrumpe, retomar desde el primer ítem sin marcar de la fase en curso.
 
-**Última actualización**: 2026-07-22 (sesión 9 — FASE 12 en curso: pantalla Dashboard, prompt 12a)
+**Última actualización**: 2026-09-16 (sesión 10 — FASE 12: detalle de sesión (12b) cerrado; corregidos dos bugs de identidad/acceso que solo se manifestaban con usuarios normales)
 
 ---
 
@@ -294,11 +294,105 @@
 **Estado**: 🔄 En curso (2026-07-22)
 
 - [x] Dashboard (prompt 12a): `app/(auth)/dashboard.tsx` reescrito portando el mockup aprobado `HomeScreen.jsx` del proyecto "Shine Design System" (claude.ai/design). Muestra: saludo con nombre y momento del día (buenos días/tardes/noches) + fecha larga; resumen semanal (actividades y minutos) con `StatTile`, solo si hubo práctica esta semana (sin ceros tristes; minutos sub-minuto se muestran como "<1"); racha en positivo con `MotivationCard` (omitida si es 0); tarjeta "Continuar" con la sesión a medias más reciente (0 < progreso < 100) y CTA directo; lista de sesiones con descripción, chips `AreaChip`/`LevelChip` derivados de sus actividades, `ProgressBar` real (X de Y actividades) y badge "Completada"; `EmptyState` amable sin sesiones; skeletons de carga (no spinner); `BottomNav` con Inicio/Mi progreso. Datos: **2 queries** — `getSessions` (con include anidado `field_activities.field_main_area,field_activities.field_activity_level` para traer área/nivel en la misma petición) + `getMySummaries`; todo lo demás derivado en cliente con `@/lib/stats` (`weeklyBuckets`, `streak`, `toStatsSummary`) y el helper puro nuevo `src/lib/sessionCards.ts` (progreso por sesión, mapeo de área a etiqueta+icono por palabra clave, nivel Level0/1/2→beginner/intermediate/advanced tomando el mínimo). Reglas de producto respetadas (esfuerzo, sin comparaciones, sin "error"). Verificación: `tsc --noEmit` limpio, `npm run lint` sin errores (solo warnings pre-existentes); derivaciones (semana=2, racha=1, progreso por sesión) contrastadas contra los summaries reales de user 1. Falta el recorrido visual con usuario real por el usuario.
-- [ ] Detalle de sesión: barra de progreso real, estados por actividad desde servidor, CTA continuar/empezar/repetir, celebración de sesión completa.
+- [x] Detalle de sesión (prompt 12b): `app/(auth)/session/[id].tsx`. El grueso entró sin documentar dentro del lote del 2026-07-22 (commit `5c62165`, titulado "update funcion elegir fuente"): barra `ProgressBar` "X de Y actividades completadas", icono por tipo de ejercicio (`book-open`/`zap`/`mic`/`image`), badge Completada/Pendiente, "Hecha N veces", CTA inferior que alterna Empezar/Continuar/Repetir abriendo la primera pendiente, celebración con `MotivationCard` al 100%, y estados de carga (skeletons), error con reintento y sesión sin actividades. **Completado el 2026-09-16** con lo único que faltaba de la spec: los chips de área y nivel en la cabecera. Para ello `getSession` usa ahora el mismo include anidado que `getSessions` (`field_activities.field_main_area,field_activities.field_activity_level`) y la pantalla reutiliza `deriveSessionCards()` de `src/lib/sessionCards.ts` para derivar los chips (el progreso lo sigue llevando `counts`, que admite la cache optimista tras completar). `tsc --noEmit` y `npm run lint` limpios.
 - [ ] Player: cuenta atrás en blink, permiso de micro denegado con fallback amable, guardado resiliente.
 - [ ] Actividad completada: mejor marca personal, variante sesión completa, sin comparaciones negativas.
 - [ ] Mi progreso: las 5 secciones del prompt 06.
 - [ ] Mensajes de motivación filtrados por tipo de actividad (arreglo A6).
+
+---
+
+## Por qué "Mi progreso" salía siempre vacío — tres bugs (2026-09-16)
+
+Los dos primeros son invisibles con el **usuario 1**, porque el super usuario se
+salta las comprobaciones. Todo el desarrollo hasta el 2026-09-16 se había probado
+con él, así que la app parecía funcionar mientras estaba rota para cualquier
+cuenta real. El tercero afectaba a todos por igual.
+
+### 1. `sub` devolvía el uid entero, no el UUID — módulo `shine_oauth` (2026-07-22)
+
+La app usa `user.sub` **en todas partes como si fuera el UUID**: `filter[uid.id]`
+en estadísticas, `PATCH /jsonapi/user/user/{uuid}` para la preferencia de fuente,
+`getNextIteration`, `getCompletedActivityCounts`. Pero `simple_oauth` sirve en
+`/oauth/userinfo` el claim `sub` con el **uid interno** (`1`, `2`…), así que esas
+llamadas devolvían 404 o colecciones vacías.
+
+Solución: módulo custom **`shine_oauth`** (`public_html/modules/custom/shine_oauth/`)
+que implementa `hook_simple_oauth_oidc_claims_alter()` y reescribe `sub` con
+`$account->uuid()`. No toca ningún otro claim ni la validación del token (el JWT
+del access token conserva su propio subject interno). Está en `core.extension.yml`,
+así que `drush cim` lo activa solo en un entorno nuevo.
+
+Verificado: `sub` = `5e11b1f1-…` en lugar de `1`.
+
+### 2. Cualquier `filter[...]` devolvía 0 resultados — `hook_jsonapi_ENTITY_TYPE_filter_access()` (2026-09-16)
+
+**Síntoma**: "Mi progreso" siempre vacío, el progreso de las sesiones siempre a
+cero, todas las actividades siempre "Pendiente", y `field_iteration` guardado
+siempre como 1 (dos intentos de la misma actividad quedaban ambos como "intento 1").
+
+**Causa**: JSON:API protege el filtrado con
+`TemporaryQueryGuard::getAccessConditionForKnownSubsets()`. Si **ningún** módulo
+implementa `hook_jsonapi_entity_filter_access()` / `hook_jsonapi_ENTITY_TYPE_filter_access()`
+para ese tipo de entidad, JSON:API no sabe qué subconjunto puede filtrar el
+usuario y, por seguridad, añade a la consulta la condición imposible
+`id < 1 AND id > 1`. Resultado: **HTTP 200 con `data: []`**, sin ningún error que
+delate el problema. Core lo implementa para sus entidades (nodos, etc.), pero las
+entidades custom tienen que hacerlo ellas.
+
+Comprobado antes del arreglo, como usuario 2 (2 resúmenes propios):
+
+| Petición | Resultado |
+|---|---|
+| sin filtro | 2 |
+| `filter[uid.id]=<su propio uuid>` | **0** |
+| `filter[field_iteration][value]=1` (valor que sí existe) | **0** |
+| lo mismo como usuario 1 | 11 |
+
+**Solución**: `activitysummary_jsonapi_activitysummary_filter_access()` en
+`activitysummary.module`, declarando los mismos permisos que ya usa el
+`hook_entity_access` del módulo: `view any …` habilita `AMONG_ALL` y
+`view own …` habilita `AMONG_OWN`. Con `AMONG_OWN`, JSON:API añade por su cuenta
+la condición `uid = <usuario actual>`, así que **filtrar no expone nada nuevo**.
+
+Verificado tras el arreglo: el usuario 2 recibe sus 2 + 2 + 2 resúmenes en los
+tres bundles, y al filtrar por el UUID de otro usuario sigue recibiendo 0.
+
+> **Al crear una entidad custom nueva expuesta en JSON:API** (por ejemplo los
+> bundles de la FASE 13) hay que implementar este hook desde el principio, o el
+> ejercicio nuevo tendrá estadísticas vacías sin dar ningún error.
+>
+> `activitylog` **todavía no lo implementa**: hoy la app no filtra esa colección
+> (solo la trae por `include`, que usa otra ruta de acceso), pero en cuanto se
+> filtre habrá que añadírselo.
+
+### 3. La app solo consultaba 1 de los 3 bundles de summary (2026-09-16)
+
+Con el filtrado ya arreglado seguía faltando información, porque tanto el
+dashboard como "Mi progreso" llamaban a `getMySummaries()`, que consultaba
+únicamente `summary_vertical_text`. Los ejercicios **blink** y los de
+**imágenes** no contaban para nada:
+
+- "Mi progreso" no mostraba ninguna gráfica de blink.
+- El resumen semanal y los minutos salían por debajo de lo real.
+- La racha se rompía en días en los que solo se habían hecho ejercicios blink o de imágenes.
+- El progreso de cada sesión no contaba esas actividades, así que una actividad blink ya completada seguía apareciendo como pendiente.
+
+**Solución**: nueva `getAllMySummaries(userUuid)` en `src/lib/api/statistics.ts`,
+que consulta los tres bundles en paralelo (cada uno con su `include`; el de
+imágenes arrastra además sus logs para la precisión) y devuelve los resúmenes
+combinados. Un bundle que falle no tumba a los demás. La pantalla de progreso
+separa los de imágenes por su `type` (`IMAGE_SUMMARY_TYPE`) para su gráfica de
+precisión, y el resto van juntos a las gráficas de evolución, que ya se agrupan
+por actividad y llevan el título real de cada una.
+
+`getMySummaries()` y `getMyImageSummaries()` quedaron huérfanas y **se han
+eliminado** (limpieza A7). Nota: el `page[limit]` es ahora 50, que es el máximo
+real de JSON:API (`OffsetPage::SIZE_MAX`); el 100 anterior se recortaba en
+silencio.
+
+Verificado con el usuario 2: 2 + 2 + 2 = **6 resúmenes** y títulos reales
+resueltos (A1, A2, A3, S1). `tsc`, `lint` y 45/45 tests limpios.
 
 ---
 

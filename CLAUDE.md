@@ -456,10 +456,14 @@ Los módulos `activitylog` y `activitysummary` tienen implementados en sus `.mod
 | Módulo | Función |
 |---|---|
 | `activity_message` | Entidad `activity_message` (bundles: `explanation_message`, `motivation_message`) |
-| `activitylog` | Entidad `activitylog` (bundle: `logverticaltext`) |
-| `activitylog_register` | Endpoint legacy `POST /activitylog-register/add` (mantener hasta migración completa) |
-| `activitysummary` | Entidad `activitysummary` (bundle: `summary_vertical_text`) |
+| `activitylog` | Entidad `activitylog` (bundles: `logverticaltext`, `log3_textlistblink`, `logimageposition`) |
+| `activitysummary` | Entidad `activitysummary` (bundles: `summary_vertical_text`, `summary3_vertical_text_blink`, `summary_image_position`). Implementa `hook_jsonapi_ENTITY_TYPE_filter_access()` (gotcha 16) |
+| `shine_oauth` | Reescribe el claim `sub` de OIDC al UUID del usuario (gotcha 15). Imprescindible: sin él la app no encuentra sus propios datos |
 | `preprocess` | Hooks `preprocess_node` (inyecta mensaje motivación en plantillas Drupal acopladas) |
+
+> `activitylog_register` (endpoint legacy `POST /activitylog-register/add`) fue
+> **retirado en la FASE 9** el 2026-07-21: la app escribe por JSON:API y el
+> endpoint tenía el bug B1. Ya no existe.
 
 ---
 
@@ -528,3 +532,28 @@ ddev drush watchdog:show --count=20 --severity=Error
 12. **`npm install` en shine-app** → siempre con `--legacy-peer-deps` por conflictos de peer deps de Expo.
 
 13. **JSON:API POST a activitylog/activitysummary devuelve 422** → el campo `label` (base field) es **required** aunque no aparece en los campos `field_*`. Siempre incluirlo en `attributes`: `{ label: "...", field_item: ..., ... }`.
+
+14. **Probar siempre con un usuario normal, NUNCA solo con el usuario 1** → el super usuario se salta las comprobaciones de permisos y de filtrado de JSON:API. Los dos bugs de los gotchas 15 y 16 estuvieron meses ocultos porque todo se probaba con el user 1. Para probar como otro usuario sin montar el flujo OAuth completo:
+    ```bash
+    ddev drush php-eval "
+    \$s = \Drupal::service('account_switcher');
+    \$s->switchTo(\Drupal\user\Entity\User::load(2));
+    \$r = \Symfony\Component\HttpFoundation\Request::create('/jsonapi/...', 'GET');
+    \$r->headers->set('Accept','application/vnd.api+json');
+    \$res = \Drupal::service('http_kernel')->handle(\$r, \Symfony\Component\HttpKernel\HttpKernelInterface::SUB_REQUEST);
+    echo \$res->getStatusCode() . PHP_EOL . \$res->getContent();
+    \$s->switchBack();
+    "
+    ```
+
+15. **`/oauth/userinfo` devuelve `sub` = uid entero, no UUID** → la app usa `user.sub` como UUID en `filter[uid.id]` y en `/jsonapi/user/user/{uuid}`. Lo corrige el módulo custom **`shine_oauth`** con `hook_simple_oauth_oidc_claims_alter()`. Si aparecen 404 al guardar ajustes del usuario o colecciones vacías, comprobar que está habilitado: `ddev drush pm:list --status=enabled --filter=shine`.
+
+16. **Entidad custom en JSON:API: cualquier `filter[...]` devuelve 200 con `data: []`** → falta `hook_jsonapi_ENTITY_TYPE_filter_access()`. Sin él, JSON:API añade la condición imposible `id < 1 AND id > 1` a toda consulta filtrada (`TemporaryQueryGuard`), sin emitir ningún error. Solo se nota con usuarios normales (ver gotcha 14). Implementado en `activitysummary.module`; **pendiente en `activitylog`** y obligatorio en cada entidad nueva de la FASE 13. Patrón:
+    ```php
+    function MODULO_jsonapi_ENTIDAD_filter_access(EntityTypeInterface $entity_type, AccountInterface $account) {
+      return [
+        JsonApiFilter::AMONG_ALL => AccessResult::allowedIfHasPermission($account, 'view any ... entities'),
+        JsonApiFilter::AMONG_OWN => AccessResult::allowedIfHasPermission($account, 'view own ... entities'),
+      ];
+    }
+    ```
