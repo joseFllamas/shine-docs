@@ -2,7 +2,7 @@
 
 > Actualizado en tiempo real. Si el desarrollo se interrumpe, retomar desde el primer ítem sin marcar de la fase en curso.
 
-**Última actualización**: 2026-09-16 (sesión 10 — FASE 12: detalle de sesión (12b) cerrado; corregidos dos bugs de identidad/acceso que solo se manifestaban con usuarios normales)
+**Última actualización**: 2026-09-17 (sesión 11 — nuevo sistema de "Mi progreso": mapa de áreas por auto-evaluación, en lugar de puntuar con tiempos de referencia)
 
 ---
 
@@ -421,3 +421,143 @@ resueltos (A1, A2, A3, S1). `tsc`, `lint` y 45/45 tests limpios.
 | 2026-03-27 | Claves RSA OAuth: `/var/www/html/private/oauth-keys/` (dentro del contenedor DDEV) |
 | 2026-05-20 | `activity_blink` es un node type propio (no usa `field_activity_format`). La sesión debe cargar sus actividades con `getBlinkActivity()` — si se usa `getActivity()` devuelve 404 y el tipo queda mal resuelto. |
 | 2026-05-20 | `drush cim` falló con sync divergente (gin theme, devel huérfano). Solución: usar `--partial` + neutralizar conflictos de theme/extension escribiendo la config activa en sync con `$sync->write()`. |
+
+---
+
+## Mapa de áreas y auto-evaluación (2026-09-17)
+
+**Estado**: ✅ Completada — backend + app.
+
+**Por qué**: la idea original era puntuar el progreso con los campos de referencia de cada
+ejercicio (sobre todo `field_seconds`). Se descarta: fijar un "tiempo de normalidad" por
+actividad **y** por nivel no es realista ni defendible pedagógicamente. En su lugar el propio
+usuario se auto-evalúa al terminar cada sesión y ese dato dibuja un gráfico radial de áreas.
+
+### 1. "Mi progreso" adelgaza
+
+`shine-app/app/(auth)/statistics/index.tsx` conserva solo las tres tarjetas de esfuerzo
+(intentos, actividades, tiempo total), la tarjeta "Vas por buen camino" y el mapa de áreas
+nuevo. Las gráficas de evolución por ejercicio, la de posición de imágenes y el historial por
+sesión se mueven tal cual a una pantalla nueva, **Detalle de estadísticas**
+(`app/(auth)/statistics/detail.tsx`, ruta `/statistics/detail`, registrada en
+`app/(auth)/_layout.tsx`), a la que se entra desde una tarjeta con chevron al final de
+"Mi progreso".
+
+### 2. Gráfico radial de áreas
+
+- `src/components/statistics/AreaRadarChart.tsx`: radar de una sola serie sobre
+  `react-native-svg`, un vértice por término del vocabulario `areas` (hoy 5). Retícula de 4
+  anillos recesiva, polígono teal con relleno al 28%, punto de 5 px con anillo blanco en cada
+  vértice. Las etiquetas son `Text` de React Native (no `<Text>` de SVG) para que respeten la
+  fuente elegida por el usuario y puedan partirse en dos líneas; 14 px mínimo, en tinta, nunca
+  del color de la serie. Sin leyenda (una sola serie, cada vértice va escrito) y con tabla de
+  datos colapsable como alternativa textual (WCAG).
+- **Vacío al registrarse**: con cero auto-evaluaciones se dibuja solo la retícula y un texto que
+  invita a terminar la primera sesión. Los vértices existen desde el primer día: el radar no
+  cambia de silueta según los datos.
+- `src/lib/api/areas.ts` (`getAreas`) trae los términos completos, no solo los trabajados.
+
+### 3. Auto-evaluación al terminar la sesión
+
+- Backend: módulo nuevo `sessionfeedback` con una entidad de contenido **sin bundles** y campos
+  de código (no configurables por Field UI): `session`, `easiest_activity`, `hardest_activity`,
+  más `label` (se autogenera en `preSave`, así un POST sin `label` no da el 422 del gotcha 13),
+  `uid`, `created` y `changed`. Permisos `create` y `view own` concedidos a `authenticated`, más
+  `hook_jsonapi_sessionfeedback_filter_access()` (gotcha 16, obligatorio) y el handler de acceso
+  con la misma política que `activitysummary`. Editar y borrar quedan reservados a administración:
+  es un registro histórico y reescribirlo falsearía el mapa acumulado.
+- App: `src/components/session/SessionFeedbackPrompt.tsx`, dos preguntas encadenadas
+  ("¿Con cuál te has sentido mejor?" y "¿Cuál te ha costado un poco más?"), la segunda sin la
+  actividad ya elegida, siempre saltable con "Ahora no". `app/(auth)/session/[id].tsx` gana el
+  modo `feedback`.
+- **Reglas de recorrido en `src/lib/sessionRun.ts`** (puro y testeado): `nextActivityIndex()`
+  encadena a la siguiente actividad sin completar y `shouldAskSessionFeedback()` pregunta cuando
+  ya no queda ninguna por hacer. La primera versión las tenía dentro de la pantalla y encadenaba
+  por el histórico de intentos: al repetir una sesión ya completada se cortaba tras la primera
+  actividad y la pregunta saltaba a mitad de sesión. Quedó resuelto del todo al adoptar el modelo
+  de una sola vez por sesión (ver más abajo).
+- Se guarda el dato crudo y **nada derivado**: la puntuación por área se recalcula entera en
+  cliente, así que la fórmula se puede ajustar sin migrar datos.
+
+### 4. Acumulación sobre el radar
+
+`src/lib/stats/areaRadar.ts` (puro, sin React ni capa API) parte de una base de 50 sobre 100 por
+área y, por cada auto-evaluación, mueve ±6 el área principal y ±3 la secundaria de la actividad
+señalada (`field_main_area` / `field_secondary_area` del nodo), con techo 100 y suelo 10.
+`toRadarFeedback` (`radarAdapter.ts`) resuelve las áreas desde el `included` del include anidado,
+en **una sola petición**, y tolera nodos borrados o respuestas a medias. `areaToPractice()` y
+`strongestArea()` generan la frase de debajo del gráfico, siempre en positivo: se invita a seguir
+practicando el vértice más bajo, nunca se señala una debilidad.
+
+### 5. Bug corregido de paso
+
+`areaChipMeta()` en `src/lib/sessionCards.ts` mapeaba **dos** áreas reales a la misma etiqueta:
+"Procesos Perceptivos (Discriminación Visual y Auditiva)" casaba con la regla de velocidad por la
+palabra "proces" y salía como "Velocidad de proceso". En el radar aparecían dos vértices con el
+mismo nombre. Corregido reordenando las reglas (la perceptiva antes que la de velocidad) y
+estrechando esa regla a `procesamiento`. Afectaba también a los chips del dashboard y del detalle
+de sesión. Cubierto con test permanente sobre los cinco nombres reales del vocabulario.
+
+### Verificación
+
+- Backend con **usuario normal** (nunca el user 1, gotcha 14): POST → **201** con `uid` y `label`
+  correctos; `GET` con `filter[uid.id]` → 1 fila (sin el hook de filtro habría devuelto `data: []`);
+  include anidado de 4 niveles → las áreas de ambas actividades en la misma respuesta.
+- Ciclo completo contra el backend real: dos auto-evaluaciones enviadas con el payload exacto de
+  la app, leídas con la query exacta de la app y pasadas por `toRadarFeedback` + `areaRadar`. Los
+  cinco vértices dieron los valores esperados a mano (59 / 59 / 38 / 44 / base sin tocar). Los
+  datos de prueba se borraron después.
+- `npx tsc --noEmit` limpio, `npm run lint` con **0 errores** (13 warnings preexistentes),
+  `npm test` → **77/77** (32 nuevos: radar, adaptador, etiquetas de área y reglas de tanda).
+- Config exportada (`drush cex`): `core.extension` y `user.role.authenticated`.
+
+**Pendiente**: recorrido visual en web y móvil por el usuario (el radar y las dos preguntas no se
+han visto todavía en pantalla real).
+
+---
+
+## Una actividad, una vez por sesión (2026-09-17)
+
+**Estado**: ✅ Completada — app.
+
+Dos peticiones del usuario tras probar el flujo anterior.
+
+### Reiniciar la actividad en curso
+
+`PlayerShell` acepta `onRestart` y pinta un botón discreto en la esquina superior derecha, sin
+fondo y en tinta secundaria, con área táctil de 48 px y etiqueta accesible "Volver a empezar esta
+actividad". Solo existe mientras la actividad está en curso: las pantallas de "completada" no
+montan ese chrome, así que el botón desaparece justo cuando dejaría de tener sentido.
+
+`ActivityBase`, `ImageGroupPlayer` y `ActivityRouter` se limitan a propagar la prop. El reinicio en
+sí lo resuelve la pantalla de sesión con un contador `attempt` en el `key` del `ActivityRouter`:
+cambiarlo remonta el player desde la introducción, sin que ningún player tenga que saber
+reiniciarse por dentro.
+
+### Una actividad completada queda cerrada en esa sesión
+
+Decisión del usuario: el cierre es **permanente**, pero por pareja (sesión, actividad). Como las
+sesiones van a ser dinámicas, una actividad ya hecha que aparezca en una sesión nueva sale
+disponible allí. Esto ya salía gratis: `getCompletedActivityCounts()` filtra por
+`filter[field_sessionid.id]`, así que lo completado siempre se lee dentro de la sesión.
+
+- La tarjeta de una actividad completada deja de ser pulsable, pierde el chevron y se atenúa
+  (fondo `bgScreen`, icono en tinta secundaria). El texto mantiene el contraste AA.
+- Fuera el botón **"Repetir sesión"** y la frase que invitaba a repetir. Una sesión terminada
+  muestra solo la felicitación y "Te espera otra cuando quieras seguir".
+- Fuera también el contador "Hecha N veces": con una sola vez posible, sobraba.
+- `sessionRun.ts` se simplifica en consecuencia: desaparecen `runDone` y `pendingAtRunStart` de la
+  pantalla, porque con el modelo de una sola vez el histórico de la sesión ya es la única verdad.
+  La auto-evaluación se pide exactamente una vez por sesión, al cerrar la última actividad que
+  quedaba, tanto si se hace del tirón como si se retoma otro día.
+
+**Consecuencia asumida**: cada sesión aporta como mucho una auto-evaluación, así que el mapa de
+áreas crece al ritmo de las sesiones nuevas, no de las repeticiones.
+
+### Verificación
+
+`npx tsc --noEmit` limpio, `npm run lint` con 0 errores, `npm test` → **73/73** (las reglas de
+recorrido se reescribieron y sus tests con ellas).
+
+**Pendiente**: recorrido visual por el usuario. Ojo al probar: una sesión ya completada queda
+bloqueada entera, así que hace falta una sesión con actividades pendientes.

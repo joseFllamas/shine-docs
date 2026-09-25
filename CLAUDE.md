@@ -423,6 +423,9 @@ Authorization: Bearer {access_token}
 - `POST /jsonapi/activitylog/logverticaltext` — crear log
 - `POST /jsonapi/activitysummary/summary_vertical_text` — crear resumen
 - `GET /jsonapi/activitysummary/summary_vertical_text?filter[uid.id]={uuid}` — mis resúmenes
+- `POST /jsonapi/sessionfeedback/sessionfeedback` — auto-evaluación de fin de sesión
+- `GET /jsonapi/sessionfeedback/sessionfeedback?filter[uid.id]={uuid}&include=easiest_activity.field_main_area,...` — mis auto-evaluaciones con las áreas de cada actividad
+- `GET /jsonapi/taxonomy_term/areas` — las áreas de trabajo (vértices del gráfico radial); lectura con `access content`
 
 ### Filtros útiles para estadísticas
 
@@ -440,12 +443,14 @@ Authorization: Bearer {access_token}
 - `view own activitylog entities`
 - `create activitysummary entities`
 - `view own activitysummary entities`
+- `create sessionfeedback entities`
+- `view own sessionfeedback entities`
 - `view activity_message`
 - `access content`
 
 ### Acceso implementado mediante hooks
 
-Los módulos `activitylog` y `activitysummary` tienen implementados en sus `.module`:
+Los módulos `activitylog`, `activitysummary` y `sessionfeedback` tienen implementados en sus `.module`:
 - `hook_activitylog_access()` / `hook_activitysummary_access()` — permite `view own`
 - `hook_activitylog_create_access()` / `hook_activitysummary_create_access()` — permite `create`
 
@@ -459,6 +464,7 @@ Los módulos `activitylog` y `activitysummary` tienen implementados en sus `.mod
 | `activitylog` | Entidad `activitylog` (bundles: `logverticaltext`, `log3_textlistblink`, `logimageposition`) |
 | `activitysummary` | Entidad `activitysummary` (bundles: `summary_vertical_text`, `summary3_vertical_text_blink`, `summary_image_position`). Implementa `hook_jsonapi_ENTITY_TYPE_filter_access()` (gotcha 16) |
 | `shine_oauth` | Reescribe el claim `sub` de OIDC al UUID del usuario (gotcha 15). Imprescindible: sin él la app no encuentra sus propios datos |
+| `sessionfeedback` | Entidad `sessionfeedback` (sin bundles, campos de código): auto-evaluación de fin de sesión. Alimenta el mapa de áreas (gráfico radial) de "Mi progreso". Implementa `hook_jsonapi_ENTITY_TYPE_filter_access()` (gotcha 16) |
 | `preprocess` | Hooks `preprocess_node` (inyecta mensaje motivación en plantillas Drupal acopladas) |
 
 > `activitylog_register` (endpoint legacy `POST /activitylog-register/add`) fue

@@ -5,6 +5,25 @@
 
 ---
 
+> **Revisión 2026-09-17 — el progreso se divide en dos pantallas.**
+>
+> La sección 1 (esfuerzo) y el ánimo se quedan en **Mi progreso**, junto a un **mapa de áreas**
+> nuevo: un gráfico radial con un vértice por área de trabajo. Las secciones 3, 4 y 5 (evolución
+> por ejercicio, aciertos e historial) se mueven a **Detalle de estadísticas**, una pantalla
+> aparte a la que se entra a propósito.
+>
+> El mapa de áreas sustituye a la idea de puntuar con los tiempos de referencia de cada ejercicio
+> (`field_seconds`): fijar un "tiempo de normalidad" por actividad y por nivel no era realista. En
+> su lugar, al terminar cada sesión se pregunta al usuario con qué actividad se ha sentido mejor y
+> cuál le ha costado un poco más; cada respuesta amplía o encoge un poco los vértices de las áreas
+> que esa actividad trabaja. El radar sale vacío al registrarse y se dibuja desde la primera
+> sesión terminada.
+>
+> La zona objetivo sombreada de la sección 3 se mantiene tal cual en Detalle de estadísticas.
+> Implementación y verificación: ver `docs/progress.md`.
+
+---
+
 Diseña la pantalla **Mi progreso** de Shine, app de ejercicios para personas con dislexia. Convierte los registros de cada ejercicio (tiempo por intento, aciertos, repeticiones) en gráficas y mensajes claros para el usuario y su familia.
 
 ## Principio rector: la evolución de la dislexia no es lineal
