@@ -8,9 +8,75 @@ El sistema expone los datos de Drupal mediante **JSON:API** (módulo core de Dru
 
 ## Autenticación
 
-### Flujo OAuth 2.0 — Authorization Code + PKCE
+### Flujo actual (FASE 14) — login y registro in-app
 
-simple_oauth v6 **elimina el Password Grant** (deprecado en OAuth 2.1). El flujo correcto para apps móviles es **Authorization Code con PKCE** (RFC 7636), que es seguro para clientes públicos.
+La app **no abre el navegador**: el usuario escribe email y contraseña dentro de la app y esta
+los intercambia por tokens contra Drupal. Es el flujo compatible con la publicación en stores
+dentro de Capacitor. simple_oauth v6 no trae el password grant; lo aporta el contrib
+`simple_oauth_password_grant`, que además acepta email como `username` y aplica flood control
+con los límites de `user.flood`.
+
+#### Entrar
+
+```
+POST /oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password
+&client_id=shine_expo_app
+&username={email}
+&password={contraseña}
+&scope=authenticated_user_access
+```
+
+Sin `client_secret`: el consumer es público (`confidential: false`). Respuesta: el mismo JSON de
+tokens (`access_token` JWT + `refresh_token`) que el resto de grants; el refresh no cambia.
+
+| Respuesta | Significado | Qué hace la app (`src/lib/api/auth.ts`) |
+|---|---|---|
+| `200` | Tokens | `useAuthStore.login()` → `/oauth/userinfo` |
+| `400 invalid_grant` | Email o contraseña incorrectos | `AuthError('invalid_credentials')` |
+| `403 flood_user_blocked` / `flood_ip_blocked` | Demasiados intentos | `AuthError('too_many_attempts')` |
+| `400 unsupported_grant_type` | Falta `password` en el consumer | Error de configuración (ver CLAUDE.md) |
+| `400 invalid_scope` | Falta `password` en el scope | Error de configuración |
+
+#### Crear cuenta
+
+Recurso REST de core `user_registration`, abierto al rol `anonymous` (permiso
+`restful post user_registration`). Política: `register: visitors`, `verify_mail: false`.
+
+```
+POST /user/register?_format=json
+Content-Type: application/json
+
+{
+  "name":               { "value": "marta@example.com" },   ← username = email
+  "mail":               { "value": "marta@example.com" },
+  "pass":               { "value": "Secreta-2026" },
+  "field_display_name": { "value": "Marta" }                ← nombre para el saludo
+}
+```
+
+| Respuesta | Significado |
+|---|---|
+| `200` | Cuenta creada y activa. La app llama acto seguido a `/oauth/token` con las mismas credenciales |
+| `422` con `already taken` | Email ya registrado → `AuthError('email_taken')` |
+| `422` (otro) | Validación de Drupal (email inválido, sin password) → `AuthError('validation')` |
+
+La petición es anónima sin cookie de sesión, por lo que no requiere token CSRF aunque el
+recurso use el proveedor `cookie`.
+
+#### Identidad del usuario
+
+- `/oauth/userinfo` devuelve `sub` = **UUID** del usuario (módulo `shine_oauth`) y `name` =
+  `field_display_name` (hook `shine_oauth_user_format_name_alter`); `preferred_username` y
+  `email` son el email.
+- Pensado para la fase 2 (cobro recurrente): cualquier estado de suscripción se asocia a ese UUID.
+
+### Flujo legacy — Authorization Code + PKCE (la app ya no lo usa)
+
+El grant `authorization_code` sigue habilitado en el consumer para pruebas desde navegador, pero
+la app eliminó `expo-auth-session` y `expo-web-browser`. Se conserva la documentación:
 
 #### Paso 1 — Abrir el navegador del dispositivo
 
@@ -47,9 +113,7 @@ POST /oauth/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code
-&client_id=shine_expo_app
-&client_secret=shine_dev_secret_2026
-&code={AUTH_CODE}
+&client_id=shine_expo_app&code={AUTH_CODE}
 &redirect_uri=exp://localhost:19000/--/oauth2redirect
 &code_verifier={PKCE_VERIFIER}
 ```
@@ -80,21 +144,19 @@ Content-Type: application/x-www-form-urlencoded
 
 grant_type=refresh_token
 &refresh_token={refresh_token}
-&client_id=shine_expo_app
-&client_secret=shine_dev_secret_2026
-```
+&client_id=shine_expo_app```
 
 ### Configuración del Consumer (Drupal admin)
 
 - **consumer_id**: 2 (entity ID)
 - **client_id**: `shine_expo_app`
-- **client_secret**: `shine_dev_secret_2026` (**cambiar en producción**)
+- **client_secret**: vacío (cliente público desde 2026-07-21; no reintroducir)
 - **UUID**: `5393c7d5-0f7b-4482-a770-0e5ce00639c2`
-- **grant_types**: `authorization_code`, `refresh_token`
-- **scopes**: `authenticated_user_access`
-- **redirect**: `exp://localhost:19000/--/oauth2redirect`
+- **grant_types**: `authorization_code`, `refresh_token`, `password` (la app usa `password`)
+- **scopes**: `authenticated_user_access` (con `password` habilitado en el scope)
+- **redirect**: `exp://localhost:19000/--/oauth2redirect`, `http://localhost:8081` (solo flujo legacy)
 - **pkce**: false (PKCE optional — el cliente lo añade igualmente)
-- **confidential**: true
+- **confidential**: false
 
 ### Scopes disponibles
 
@@ -106,7 +168,7 @@ grant_type=refresh_token
 
 - El authorize endpoint redirige a `/user/login` si el usuario no está autenticado — esto es el comportamiento correcto en el flujo Authorization Code
 - Para testing con curl, el `&` en la URL debe estar dentro de comillas simples: `curl -s 'https://shine.ddev.site/oauth/authorize?client_id=...&response_type=code'`
-- `simple_oauth v6` no tiene Password Grant — requiere Authorization Code + PKCE
+- `simple_oauth v6` no trae Password Grant de serie: lo aporta `simple_oauth_password_grant` (ver "Flujo actual")
 - Las claves RSA se encuentran en `/var/www/html/private/oauth-keys/` (dentro del contenedor DDEV)
 
 ---

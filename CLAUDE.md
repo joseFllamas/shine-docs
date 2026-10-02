@@ -109,9 +109,11 @@ npm install --legacy-peer-deps
 npx expo install --fix
 ```
 
-### 8. Añadir redirect URI para el entorno local
+### 8. Consumer OAuth2: grant `password` y redirect URI
 
-Si el entorno local tiene una IP o puerto diferente, añadirlo al consumer OAuth2:
+El consumer no viaja en `config/sync`. Tras crearlo, habilitar el grant `password` (ver sección
+"OAuth2 → Consumer configurado"). Solo si se quiere probar el flujo Authorization Code (la app no lo
+usa) hace falta añadir el redirect URI del entorno local:
 
 ```bash
 cd ../shine/
@@ -169,7 +171,8 @@ shine.test/
 │   ├── app/                  ← rutas Expo Router
 │   │   ├── _layout.tsx       ← root layout con auth guard
 │   │   ├── index.tsx         ← redirect inicial
-│   │   ├── login.tsx         ← OAuth2 + PKCE
+│   │   ├── login.tsx         ← email + contraseña in-app (grant password)
+│   │   ├── register.tsx      ← crear cuenta (REST user_registration) + login automático
 │   │   └── (auth)/
 │   │       ├── dashboard.tsx
 │   │       ├── session/[id].tsx
@@ -179,7 +182,8 @@ shine.test/
 │   │   ├── lib/
 │   │   │   ├── storage.ts    ← SecureStore (móvil) / localStorage (web)
 │   │   │   ├── stripHtml.ts
-│   │   │   └── api/          ← client.ts, activities.ts, sessions.ts, tracking.ts, statistics.ts, messages.ts
+│   │   │   ├── authForm.ts   ← validación y mensajes de entrar/crear cuenta (lógica pura, testeada)
+│   │   │   └── api/          ← client.ts, auth.ts (login/registro), activities.ts, sessions.ts, tracking.ts, statistics.ts, messages.ts
 │   │   ├── store/            ← auth.ts, session.ts (Zustand)
 │   │   └── components/
 │   │       ├── activities/   ← ActivityBase, ActivityRouter, VerticalTextPlayer, AudioReadingPlayer
@@ -246,7 +250,9 @@ npm start           # QR para Expo Go (SDK 54)
 | PHP | 8.3 | |
 | MariaDB | 10.11 | |
 | Drush | 13.7.2 | |
-| simple_oauth | 6.1.0 | OAuth2 Authorization Code + PKCE |
+| simple_oauth | 6.1.1 | OAuth2. La app usa el grant `password` (login in-app) |
+| simple_oauth_password_grant | 2.1.0 | Contrib: re-añade el grant `password` a simple_oauth 6 (con flood control y login por email) |
+| rest (core) | core | Solo el recurso `user_registration` (`POST /user/register?_format=json`) |
 | JSON:API | core | Habilitado |
 | CORS | services.yml | Habilitado, `allowedOrigins: ['*']` |
 | Expo SDK | 54 | SDK 55 incompatible con Expo Go actual |
@@ -260,15 +266,46 @@ npm start           # QR para Expo Go (SDK 54)
 
 ### Versión y flujo
 
-`simple_oauth v6` **no tiene Password Grant** (eliminado siguiendo OAuth 2.1). El flujo para la app Expo es **Authorization Code + PKCE**.
+`simple_oauth v6` eliminó el Password Grant de serie (OAuth 2.1). Desde la **FASE 14 (2026-09-29)** lo
+re-añade el contrib **`simple_oauth_password_grant`** y la app hace **login in-app** con
+`grant_type=password` (email + contraseña dentro de la app, sin abrir el navegador). Motivo: la app
+se publicará en los stores dentro de Capacitor, y un flujo con redirect al navegador externo es
+frágil en un WebView. El grant `authorization_code` sigue habilitado en el consumer pero la app ya
+no lo usa (se eliminaron `expo-auth-session` y `expo-web-browser`).
+
+### Login y registro in-app (FASE 14)
+
+```
+POST /oauth/token                          grant_type=password&client_id=shine_expo_app
+                                           &username={email}&password={pass}&scope=authenticated_user_access
+POST /user/register?_format=json           {"name":{"value":email},"mail":{"value":email},
+  (anónimo, REST core user_registration)    "pass":{"value":pass},"field_display_name":{"value":"Marta"}}
+```
+
+- **Identidad**: el `name` (username) de Drupal **es el email**; el nombre humano va en el campo
+  `field_display_name` (string, 60) del usuario. `shine_oauth` implementa `hook_user_format_name_alter()`
+  para que `getDisplayName()` (y por tanto el claim `name` de `/oauth/userinfo` y el admin de Drupal)
+  devuelva ese nombre. El módulo de password grant acepta username **o email** en `username`.
+- **Política de registro** (`user.settings`): `register: visitors`, `verify_mail: false`. Sin
+  aprobación ni email de verificación: el usuario elige contraseña en la app y entra al momento.
+- **Permiso**: rol `anonymous` tiene `restful post user_registration`. Config exportada en
+  `rest.resource.user_registration.yml` (POST, json, auth `cookie`; una petición anónima sin cookie
+  de sesión no requiere token CSRF).
+- **Errores que maneja la app** (`src/lib/api/auth.ts`): `400 invalid_grant` (credenciales),
+  `403 flood_user_blocked` / `flood_ip_blocked` (flood control con los límites de `user.flood`),
+  `422` con "already taken" (email repetido) u otra validación.
+- **Cliente público**: el consumer sigue sin secret; `ClientRepository::validateClient` de simple_oauth
+  no exige secret a consumers `confidential: false`. Verificado con curl.
+- **Fase 2 (futuro)**: cobro recurrente para registrados. La identidad es el UUID del user de Drupal
+  (`sub` de userinfo): cualquier estado de suscripción se cuelga de ese usuario.
 
 ### Endpoints OAuth2
 
 ```
-GET  /oauth/authorize     ← inicia el flujo (browser/WebView)
-POST /oauth/token         ← intercambia código por token / refresh
-GET  /oauth/userinfo      ← info del usuario autenticado (JWT)
+POST /oauth/token         ← password grant (login in-app) / refresh
+GET  /oauth/userinfo      ← info del usuario autenticado (JWT); sub = UUID, name = field_display_name
 GET  /oauth/jwks          ← claves públicas JWT
+GET  /oauth/authorize     ← Authorization Code (sigue activo, la app NO lo usa)
 ```
 
 ### Consumer configurado
@@ -276,14 +313,21 @@ GET  /oauth/jwks          ← claves públicas JWT
 - **client_id**: `shine_expo_app`
 - **client_secret**: (vacío) — desde 2026-07-21 el consumer es **cliente público** (B4). Con PKCE el secreto es innecesario y en un bundle JS sería público de facto. NO reintroducir secret.
 - **UUID**: `5393c7d5-0f7b-4482-a770-0e5ce00639c2`
-- **grant_types**: `authorization_code`, `refresh_token`
+- **grant_types**: `authorization_code`, `refresh_token`, `password` (este último es el que usa la app)
 - **scope**: `authenticated_user_access`
 - **redirect_uris configuradas**:
   - `exp://localhost:19000/--/oauth2redirect` — Expo Go (móvil)
   - `http://localhost:8081` — web dev
 - **confidential**: false (cliente público)
 
-> El consumer es una **entidad de contenido** (vive en BD, no en `config/sync`): `drush cex` no lo captura y hay que recrearlo/ajustarlo en cada entorno (ver "Configuración en un PC nuevo"). Al crearlo, poner `confidential: false` y no asignar secret.
+> El consumer es una **entidad de contenido** (vive en BD, no en `config/sync`): `drush cex` no lo captura y hay que recrearlo/ajustarlo en cada entorno (ver "Configuración en un PC nuevo"). Al crearlo, poner `confidential: false`, no asignar secret y **marcar el grant `password`** (sin él, `/oauth/token` devuelve `unsupported_grant_type`):
+> ```bash
+> ddev drush php-eval "
+> \$c = \Drupal::entityTypeManager()->getStorage('consumer')->loadByProperties(['client_id' => 'shine_expo_app']);
+> \$c = reset(\$c); \$g = array_column(\$c->get('grant_types')->getValue(), 'value');
+> if (!in_array('password', \$g)) { \$g[] = 'password'; \$c->set('grant_types', \$g)->save(); } echo implode(',', \$g);
+> "
+> ```
 >
 > El rol `authenticated` tiene el permiso `grant simple_oauth codes` (exportado en `config/sync/user.role.authenticated.yml`), **imprescindible** para que un usuario normal pueda completar `/oauth/authorize`. Sin él solo el user 1 (super user) puede hacer login.
 >
@@ -318,7 +362,7 @@ ddev drush php-eval "
 - **ID**: `authenticated_user_access`
 - **name**: `authenticated_user_access` (igual que el ID — ver bug arriba)
 - **Granularidad**: Rol `authenticated`
-- **grant_types habilitados**: `authorization_code`, `refresh_token`
+- **grant_types habilitados**: `authorization_code`, `refresh_token`, `password` (exportado en `simple_oauth.oauth2_scope.authenticated_user_access.yml`; si falta `password`, el token da `invalid_scope`)
 
 ### Claves RSA
 
@@ -463,7 +507,7 @@ Los módulos `activitylog`, `activitysummary` y `sessionfeedback` tienen impleme
 | `activity_message` | Entidad `activity_message` (bundles: `explanation_message`, `motivation_message`) |
 | `activitylog` | Entidad `activitylog` (bundles: `logverticaltext`, `log3_textlistblink`, `logimageposition`) |
 | `activitysummary` | Entidad `activitysummary` (bundles: `summary_vertical_text`, `summary3_vertical_text_blink`, `summary_image_position`). Implementa `hook_jsonapi_ENTITY_TYPE_filter_access()` (gotcha 16) |
-| `shine_oauth` | Reescribe el claim `sub` de OIDC al UUID del usuario (gotcha 15). Imprescindible: sin él la app no encuentra sus propios datos |
+| `shine_oauth` | Reescribe el claim `sub` de OIDC al UUID del usuario (gotcha 15). Imprescindible: sin él la app no encuentra sus propios datos. Desde FASE 14 también `hook_user_format_name_alter()`: el display name del usuario es `field_display_name` (el username es el email) |
 | `sessionfeedback` | Entidad `sessionfeedback` (sin bundles, campos de código): auto-evaluación de fin de sesión. Alimenta el mapa de áreas (gráfico radial) de "Mi progreso". Implementa `hook_jsonapi_ENTITY_TYPE_filter_access()` (gotcha 16) |
 | `preprocess` | Hooks `preprocess_node` (inyecta mensaje motivación en plantillas Drupal acopladas) |
 
@@ -511,7 +555,7 @@ ddev drush watchdog:show --count=20 --severity=Error
 
 1. **`&` en curl dentro de ddev exec** → siempre usar `ddev exec bash -c 'curl -s "...?a=1&b=2"'`
 
-2. **simple_oauth v6 no tiene Password Grant** → solo Authorization Code + PKCE
+2. **simple_oauth v6 no trae Password Grant de serie** → lo aporta el contrib `simple_oauth_password_grant`; hay que habilitar `password` tanto en el **consumer** (entidad de contenido, por entorno) como en el **scope** (config). Ver "Login y registro in-app"
 
 3. **simple_oauth `invalid_scope`** → el campo `name` del scope entity debe ser igual al identifier OAuth (ver sección OAuth2 arriba)
 

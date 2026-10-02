@@ -2,7 +2,7 @@
 
 > Actualizado en tiempo real. Si el desarrollo se interrumpe, retomar desde el primer ítem sin marcar de la fase en curso.
 
-**Última actualización**: 2026-09-17 (sesión 11 — nuevo sistema de "Mi progreso": mapa de áreas por auto-evaluación, en lugar de puntuar con tiempos de referencia)
+**Última actualización**: 2026-09-29 (sesión 12 — FASE 14: login y registro in-app, sin navegador; decisión de publicar en stores vía Capacitor)
 
 ---
 
@@ -399,6 +399,12 @@ resueltos (A1, A2, A3, S1). `tsc`, `lint` y 45/45 tests limpios.
 ## FASE 8 — PWA completa y publicación en stores
 **Estado**: ⏳ Pendiente
 
+> **Decisión 2026-09-29**: se publicará en App Store y Google Play usando **Capacitor** como
+> puente a los servicios nativos (envolviendo el build web de la app). Revisar las tareas de
+> EAS Build de abajo cuando se llegue aquí. Prerrequisito ya resuelto: login/registro sin
+> navegador externo (FASE 14). Más adelante (fase 2 de auth) se prevé cobro recurrente para
+> usuarios registrados.
+
 - [ ] Configurar `app.json` (bundle ID, iconos, splash)
 - [ ] Configurar EAS Build
 - [ ] Build de preview para pruebas
@@ -409,10 +415,47 @@ resueltos (A1, A2, A3, S1). `tsc`, `lint` y 45/45 tests limpios.
 
 ---
 
+## FASE 14 — Login y registro in-app (sin navegador)
+**Estado**: ✅ Completada (2026-09-29) — backend + app. Pendiente: subir las pantallas al design system.
+
+**Por qué**: la app se publicará en los stores dentro de Capacitor. El flujo Authorization Code
+abría el navegador del sistema y volvía por redirect; dentro de un WebView instalado eso es
+frágil. Ahora el usuario escribe email y contraseña en la app y esta habla con Drupal "por
+detrás". Decisiones del usuario: registro abierto sin verificación de email; identidad por
+email; codificar las pantallas ya con los tokens del DS.
+
+### Backend (Drupal)
+- [x] `drupal/simple_oauth_password_grant` 2.1.0 (contrib) → grant `password` para simple_oauth 6. Trae flood control (`user.flood`) y login por email.
+- [x] Grant `password` habilitado en el consumer `shine_expo_app` (entidad de contenido, por entorno) y en el scope `authenticated_user_access` (config).
+- [x] Cliente público sin secret verificado con el password grant (`ClientRepository::validateClient` no exige secret si `confidential: false`).
+- [x] `rest` (core) habilitado solo con el recurso `user_registration` (`POST /user/register?_format=json`, json, auth cookie). Permiso `restful post user_registration` al rol `anonymous`.
+- [x] `user.settings`: `register: visitors`, `verify_mail: false`.
+- [x] Campo `field_display_name` (string 60) en user: el username es el email, el nombre humano va aquí. En form/view display por defecto.
+- [x] `shine_oauth`: `hook_user_format_name_alter()` → display name = `field_display_name` (claim `name` de userinfo y admin de Drupal).
+- [x] Config exportada (`drush cex`).
+- [x] Probado con curl como usuario nuevo (no user 1): registro 200 → token 200 → userinfo (`sub` UUID, `name` display) → JSON:API propio 200; 400 `invalid_grant`, 422 duplicado, 422 sin password.
+
+### App (Expo)
+- [x] `src/lib/api/auth.ts`: `requestPasswordToken()` y `registerAccount()` con `AuthError` tipado (`invalid_credentials`, `too_many_attempts`, `email_taken`, `validation`, `network`, `server`).
+- [x] `src/lib/authForm.ts`: validación de formularios y mensajes amables; 9 tests en `src/lib/__tests__/authForm.test.ts`.
+- [x] `useAuthStore.signIn(email, password)`; `login(tokens)` y el refresh de `client.ts` sin cambios.
+- [x] `app/login.tsx` reescrito: email + contraseña, errores por campo, aviso ámbar, enlace a crear cuenta.
+- [x] `app/register.tsx`: nombre + email + contraseña; al crear, entra automáticamente.
+- [x] UI nueva con tokens del DS: `TextField` (52px, borde gris→teal→rojo, ojo mostrar/ocultar) e `InlineAlert` (aviso ámbar extraído del login). Iconos `eye-off`, `mail`, `lock`, `user`.
+- [x] Eliminados `expo-auth-session` y `expo-web-browser` (y el plugin en `app.json`). `expo-linking` reinstalado explícitamente: era dependencia transitiva y expo-router lo necesita.
+- [x] `tsc`, `eslint` y 95/95 tests en verde.
+- [ ] Subir `LoginScreen` (con formulario), `RegisterScreen`, `TextField` e `InlineAlert` al Shine Design System (claude.ai/design) para que el DS siga siendo la fuente de verdad.
+- [ ] Recuperar contraseña desde la app (hoy solo por la web de Drupal `/user/password`).
+
+---
+
 ## Notas técnicas y decisiones
 
 | Fecha | Nota |
 |---|---|
+| 2026-09-29 | Publicación en stores vía **Capacitor**. Toda funcionalidad nueva debe funcionar dentro de un WebView instalado: nada de redirects al navegador externo, Bearer tokens en vez de cookies. |
+| 2026-09-29 | Login in-app con `grant_type=password` (contrib `simple_oauth_password_grant`). Hay que habilitar `password` en el consumer (BD, por entorno) **y** en el scope (config); si falta en el consumer → `unsupported_grant_type`, si falta en el scope → `invalid_scope`. |
+| 2026-09-29 | `npm uninstall expo-auth-session` arrastra `expo-linking`, que expo-router necesita: Metro falla con `ENOENT expo-linking/build/Linking.js`. Solución: `npx expo install expo-linking` (queda como dependencia directa). |
 | 2026-03-27 | Frontend cambiado de Next.js a Expo por requisito de publicación en App Store iOS y acceso nativo al micrófono |
 | 2026-03-27 | El typo `motiviation_message` no se puede renombrar con un simple find/replace: requiere migración de bundle en BD + rename de config. Ver sección de notas en Fase 0. |
 | 2026-03-27 | `simple_oauth v6` NO tiene Password Grant (eliminado por OAuth 2.1). Usar Authorization Code + PKCE. Ver `docs/api-design.md`. |
